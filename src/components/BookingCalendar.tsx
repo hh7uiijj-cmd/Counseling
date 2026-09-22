@@ -1,0 +1,428 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import {
+  buildMonthGrid,
+  THAI_MONTHS,
+  THAI_WEEKDAYS_SHORT,
+  todayKey,
+} from "@/lib/calendarGrid";
+
+type DaySummary = {
+  date: string;
+  totalSlots: number;
+  availableSlots: number;
+  counselorNames: string[];
+  closed: boolean;
+};
+
+type SlotItem = {
+  id: string;
+  counselorId: string;
+  counselorName: string;
+  counselorTitle: string | null;
+  counselorColor: string;
+  startTime: string;
+  endTime: string;
+  available: boolean;
+};
+
+function thaiDateLabelLocal(dateKeyStr: string) {
+  const [y, m, d] = dateKeyStr.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  return new Intl.DateTimeFormat("th-TH", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }).format(date);
+}
+
+export default function BookingCalendar() {
+  const now = new Date();
+  const [year, setYear] = useState(now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth() + 1); // 1-12
+  const [days, setDays] = useState<Record<string, DaySummary>>({});
+  const [loadingMonth, setLoadingMonth] = useState(true);
+
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [slots, setSlots] = useState<SlotItem[] | null>(null);
+  const [dateClosed, setDateClosed] = useState(false);
+  const [loadingDay, setLoadingDay] = useState(false);
+
+  const [bookingSlot, setBookingSlot] = useState<SlotItem | null>(null);
+
+  const grid = useMemo(() => buildMonthGrid(year, month), [year, month]);
+  const today = todayKey();
+
+  useEffect(() => {
+    let cancelled = false;
+    const monthStr = `${year}-${String(month).padStart(2, "0")}`;
+    fetch(`/api/availability?month=${monthStr}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (cancelled) return;
+        const map: Record<string, DaySummary> = {};
+        for (const d of data.days as DaySummary[]) map[d.date] = d;
+        setDays(map);
+      })
+      .finally(() => !cancelled && setLoadingMonth(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [year, month]);
+
+  function goPrevMonth() {
+    setLoadingMonth(true);
+    if (month === 1) {
+      setMonth(12);
+      setYear((y) => y - 1);
+    } else {
+      setMonth((m) => m - 1);
+    }
+  }
+
+  function goNextMonth() {
+    setLoadingMonth(true);
+    if (month === 12) {
+      setMonth(1);
+      setYear((y) => y + 1);
+    } else {
+      setMonth((m) => m + 1);
+    }
+  }
+
+  function selectDate(dateKeyStr: string) {
+    setSelectedDate(dateKeyStr);
+    setSlots(null);
+    setLoadingDay(true);
+    fetch(`/api/availability/${dateKeyStr}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setSlots(data.slots);
+        setDateClosed(Boolean(data.closed));
+      })
+      .finally(() => setLoadingDay(false));
+  }
+
+  return (
+    <div className="grid gap-6 md:grid-cols-[1fr_360px]">
+      <div className="rounded-2xl border border-black/10 bg-white/60 p-4 shadow-sm dark:bg-white/5">
+        <div className="mb-4 flex items-center justify-between">
+          <button
+            onClick={goPrevMonth}
+            className="rounded-lg px-3 py-1.5 text-sm hover:bg-black/5 dark:hover:bg-white/10"
+            aria-label="เดือนก่อนหน้า"
+          >
+            ◀
+          </button>
+          <h2 className="text-lg font-semibold">
+            {THAI_MONTHS[month - 1]} {year + 543}
+          </h2>
+          <button
+            onClick={goNextMonth}
+            className="rounded-lg px-3 py-1.5 text-sm hover:bg-black/5 dark:hover:bg-white/10"
+            aria-label="เดือนถัดไป"
+          >
+            ▶
+          </button>
+        </div>
+
+        <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-black/50 dark:text-white/50">
+          {THAI_WEEKDAYS_SHORT.map((w) => (
+            <div key={w} className="py-1">
+              {w}
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-7 gap-1">
+          {grid.map((cell) => {
+            const summary = days[cell.key];
+            const isPast = cell.key < today;
+            const isSelected = cell.key === selectedDate;
+            const isClosed = summary?.closed;
+            const hasAvailability = summary && summary.availableSlots > 0 && !isClosed;
+
+            return (
+              <button
+                key={cell.key}
+                disabled={!cell.inMonth || isPast}
+                onClick={() => selectDate(cell.key)}
+                className={[
+                  "flex h-16 flex-col items-center justify-start rounded-lg border p-1 text-sm transition",
+                  !cell.inMonth ? "opacity-30" : "",
+                  isPast ? "cursor-not-allowed opacity-40" : "cursor-pointer hover:border-blue-400",
+                  isSelected ? "border-blue-600 ring-2 ring-blue-300" : "border-black/10 dark:border-white/10",
+                  cell.key === today ? "font-bold" : "",
+                ].join(" ")}
+              >
+                <span>{cell.day}</span>
+                {cell.inMonth && !isPast && (
+                  <span
+                    className={[
+                      "mt-1 h-2 w-2 rounded-full",
+                      isClosed
+                        ? "bg-gray-400"
+                        : hasAvailability
+                        ? "bg-green-500"
+                        : summary
+                        ? "bg-red-400"
+                        : "bg-transparent",
+                    ].join(" ")}
+                    title={
+                      isClosed
+                        ? "ปิดทำการ"
+                        : hasAvailability
+                        ? "มีคิวว่าง"
+                        : "ไม่มีคิวว่าง"
+                    }
+                  />
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {loadingMonth && (
+          <p className="mt-2 text-xs text-black/40">กำลังโหลดข้อมูล...</p>
+        )}
+
+        <div className="mt-4 flex flex-wrap gap-4 text-xs text-black/60 dark:text-white/60">
+          <span className="flex items-center gap-1">
+            <span className="h-2 w-2 rounded-full bg-green-500" /> มีคิวว่าง
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="h-2 w-2 rounded-full bg-red-400" /> เต็มแล้ว
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="h-2 w-2 rounded-full bg-gray-400" /> ปิดทำการ
+          </span>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-black/10 bg-white/60 p-4 shadow-sm dark:bg-white/5">
+        {!selectedDate && (
+          <p className="text-sm text-black/50 dark:text-white/50">
+            เลือกวันที่ทางซ้ายเพื่อดูผู้ให้คำปรึกษาและเวลาว่าง
+          </p>
+        )}
+
+        {selectedDate && (
+          <div>
+            <h3 className="mb-3 font-semibold">{thaiDateLabelLocal(selectedDate)}</h3>
+
+            {loadingDay && <p className="text-sm text-black/50">กำลังโหลด...</p>}
+
+            {!loadingDay && dateClosed && (
+              <p className="text-sm text-gray-500">วันนี้ปิดทำการ</p>
+            )}
+
+            {!loadingDay && !dateClosed && slots && slots.length === 0 && (
+              <p className="text-sm text-black/50">ยังไม่มีคิวเปิดให้จองในวันนี้</p>
+            )}
+
+            {!loadingDay && !dateClosed && slots && slots.length > 0 && (
+              <ul className="flex flex-col gap-2">
+                {slots.map((slot) => (
+                  <li
+                    key={slot.id}
+                    className="flex items-center justify-between rounded-lg border border-black/10 p-2 text-sm dark:border-white/10"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="h-3 w-3 shrink-0 rounded-full"
+                        style={{ backgroundColor: slot.counselorColor }}
+                      />
+                      <div>
+                        <p className="font-medium">
+                          {slot.startTime} - {slot.endTime}
+                        </p>
+                        <p className="text-xs text-black/50 dark:text-white/50">
+                          {slot.counselorName}
+                          {slot.counselorTitle ? ` · ${slot.counselorTitle}` : ""}
+                        </p>
+                      </div>
+                    </div>
+                    {slot.available ? (
+                      <button
+                        onClick={() => setBookingSlot(slot)}
+                        className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
+                      >
+                        จองคิว
+                      </button>
+                    ) : (
+                      <span className="rounded-lg bg-gray-200 px-3 py-1.5 text-xs text-gray-500 dark:bg-white/10">
+                        ไม่ว่าง
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+      </div>
+
+      {bookingSlot && selectedDate && (
+        <BookingModal
+          slot={bookingSlot}
+          dateLabel={thaiDateLabelLocal(selectedDate)}
+          onClose={() => setBookingSlot(null)}
+          onSuccess={() => {
+            setBookingSlot(null);
+            selectDate(selectedDate);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function BookingModal({
+  slot,
+  dateLabel,
+  onClose,
+  onSuccess,
+}: {
+  slot: SlotItem;
+  dateLabel: string;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [clientName, setClientName] = useState("");
+  const [clientPhone, setClientPhone] = useState("");
+  const [clientEmail, setClientEmail] = useState("");
+  const [topic, setTopic] = useState("");
+  const [note, setNote] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/bookings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          slotId: slot.id,
+          clientName,
+          clientPhone,
+          clientEmail: clientEmail || undefined,
+          topic: topic || undefined,
+          note: note || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        if (data.error === "slot_taken") {
+          setError("ขออภัย คิวนี้เพิ่งถูกจองไปแล้ว กรุณาเลือกเวลาอื่น");
+        } else if (data.error === "date_closed") {
+          setError("วันนี้ปิดทำการแล้ว กรุณาเลือกวันอื่น");
+        } else {
+          setError("เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง");
+        }
+        return;
+      }
+      setSuccess(true);
+      setTimeout(onSuccess, 1200);
+    } catch {
+      setError("เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-neutral-900">
+        {success ? (
+          <div className="text-center">
+            <p className="text-lg font-semibold text-green-600">จองคิวสำเร็จ!</p>
+            <p className="mt-2 text-sm text-black/60 dark:text-white/60">
+              ระบบได้บันทึกการจองของคุณแล้ว เจ้าหน้าที่จะติดต่อยืนยันกลับไป
+            </p>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+            <h3 className="text-lg font-semibold">จองคิวให้คำปรึกษา</h3>
+            <p className="text-sm text-black/60 dark:text-white/60">
+              {dateLabel} · {slot.startTime}-{slot.endTime} น. กับ {slot.counselorName}
+            </p>
+
+            <label className="text-sm font-medium">
+              ชื่อ-นามสกุล *
+              <input
+                required
+                value={clientName}
+                onChange={(e) => setClientName(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-black/20 p-2 text-sm dark:border-white/20 dark:bg-transparent"
+              />
+            </label>
+
+            <label className="text-sm font-medium">
+              เบอร์โทรศัพท์ *
+              <input
+                required
+                value={clientPhone}
+                onChange={(e) => setClientPhone(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-black/20 p-2 text-sm dark:border-white/20 dark:bg-transparent"
+              />
+            </label>
+
+            <label className="text-sm font-medium">
+              อีเมล (ถ้ามี)
+              <input
+                type="email"
+                value={clientEmail}
+                onChange={(e) => setClientEmail(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-black/20 p-2 text-sm dark:border-white/20 dark:bg-transparent"
+              />
+            </label>
+
+            <label className="text-sm font-medium">
+              หัวข้อที่ต้องการปรึกษา
+              <input
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-black/20 p-2 text-sm dark:border-white/20 dark:bg-transparent"
+              />
+            </label>
+
+            <label className="text-sm font-medium">
+              รายละเอียดเพิ่มเติม
+              <textarea
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                rows={3}
+                className="mt-1 w-full rounded-lg border border-black/20 p-2 text-sm dark:border-white/20 dark:bg-transparent"
+              />
+            </label>
+
+            {error && <p className="text-sm text-red-600">{error}</p>}
+
+            <div className="mt-2 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-lg px-4 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/10"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                {submitting ? "กำลังส่ง..." : "ยืนยันการจอง"}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}

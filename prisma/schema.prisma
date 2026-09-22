@@ -1,0 +1,77 @@
+// Prisma schema for the counseling room booking system.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+model Admin {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+}
+
+model Counselor {
+  id        String   @id @default(cuid())
+  name      String
+  title     String? // e.g. specialty / role, shown to clients
+  bio       String?
+  photoUrl  String?
+  color     String   @default("#2563eb") // used to color-code this counselor on the calendar
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  slots Slot[]
+}
+
+model ClosedDate {
+  id        String   @id @default(cuid())
+  date      DateTime @db.Date
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@unique([date])
+}
+
+model Slot {
+  id          String   @id @default(cuid())
+  counselorId String
+  counselor   Counselor @relation(fields: [counselorId], references: [id], onDelete: Cascade)
+  date        DateTime @db.Date
+  startsAt    DateTime
+  endsAt      DateTime
+  createdAt   DateTime @default(now())
+
+  booking Booking?
+
+  @@index([date])
+  @@index([counselorId, date])
+}
+
+model Booking {
+  id           String        @id @default(cuid())
+  slotId       String        @unique
+  slot         Slot          @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  clientName   String
+  clientPhone  String
+  clientEmail  String?
+  topic        String?
+  note         String?
+  status       BookingStatus @default(PENDING)
+  lineNotified Boolean       @default(false)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}

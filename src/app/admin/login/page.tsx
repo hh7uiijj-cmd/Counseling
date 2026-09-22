@@ -1,0 +1,81 @@
+"use client";
+
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+
+function LoginForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitting(true);
+    setError(null);
+    const res = await fetch("/api/admin/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
+    setSubmitting(false);
+    if (!res.ok) {
+      setError("ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง");
+      return;
+    }
+    const next = searchParams.get("next") || "/admin/dashboard";
+    router.push(next);
+    router.refresh();
+  }
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="flex w-full max-w-sm flex-col gap-3 rounded-2xl border border-black/10 bg-white/60 p-6 shadow-sm dark:bg-white/5"
+    >
+      <h1 className="mb-2 text-center text-xl font-semibold">
+        เข้าสู่ระบบเจ้าหน้าที่
+      </h1>
+      <label className="text-sm font-medium">
+        ชื่อผู้ใช้
+        <input
+          required
+          autoFocus
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          className="mt-1 w-full rounded-lg border border-black/20 p-2 text-sm dark:border-white/20 dark:bg-transparent"
+        />
+      </label>
+      <label className="text-sm font-medium">
+        รหัสผ่าน
+        <input
+          required
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="mt-1 w-full rounded-lg border border-black/20 p-2 text-sm dark:border-white/20 dark:bg-transparent"
+        />
+      </label>
+      {error && <p className="text-sm text-red-600">{error}</p>}
+      <button
+        type="submit"
+        disabled={submitting}
+        className="mt-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+      >
+        {submitting ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
+      </button>
+    </form>
+  );
+}
+
+export default function AdminLoginPage() {
+  return (
+    <div className="flex min-h-screen flex-1 items-center justify-center p-4">
+      <Suspense>
+        <LoginForm />
+      </Suspense>
+    </div>
+  );
+}
