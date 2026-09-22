@@ -42,7 +42,7 @@ export default function Home() {
 
         <BookingCalendar />
 
-        <footer className="mt-8 text-center text-xs text-black/40 dark:text-white/50">
+        <footer className="mt-8 text-center text-xs text-black/40 dark:text-white/60">
           <p>ห้อง SDU Counseling Center อาคาร 2 ชั้น 2 · วันจันทร์-ศุกร์ 09.00-16.00 น. · โทร 02-244-5006</p>
           <a href="/admin/login" className="btn-link mt-1 inline-block">
             สำหรับเจ้าหน้าที่

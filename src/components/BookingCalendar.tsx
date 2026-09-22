@@ -194,10 +194,10 @@ export default function BookingCalendar() {
         </div>
 
         {loadingMonth && (
-          <p className="mt-2 text-xs text-black/40">กำลังโหลดข้อมูล...</p>
+          <p className="mt-2 text-xs text-black/40 dark:text-white/60">กำลังโหลดข้อมูล...</p>
         )}
 
-        <div className="mt-4 flex flex-wrap gap-4 text-xs text-black/60 dark:text-white/60">
+        <div className="mt-4 flex flex-wrap gap-4 text-xs text-black/60 dark:text-white/75">
           <span className="flex items-center gap-1">
             <span className="h-2 w-2 rounded-full bg-green-500" /> มีคิวว่าง
           </span>
@@ -212,7 +212,7 @@ export default function BookingCalendar() {
 
       <div className="card p-3 sm:p-4">
         {!selectedDate && (
-          <p className="text-sm text-black/50 dark:text-white/50">
+          <p className="text-sm text-black/50 dark:text-white/65">
             เลือกวันที่ทางซ้ายเพื่อดูผู้ให้คำปรึกษาและเวลาว่าง
           </p>
         )}
@@ -221,14 +221,14 @@ export default function BookingCalendar() {
           <div>
             <h3 className="mb-3 font-semibold">{thaiDateLabelLocal(selectedDate)}</h3>
 
-            {loadingDay && <p className="text-sm text-black/50">กำลังโหลด...</p>}
+            {loadingDay && <p className="text-sm text-black/50 dark:text-white/65">กำลังโหลด...</p>}
 
             {!loadingDay && dateClosed && (
               <p className="text-sm text-gray-500">วันนี้ปิดทำการ</p>
             )}
 
             {!loadingDay && !dateClosed && slots && slots.length === 0 && (
-              <p className="text-sm text-black/50">ยังไม่มีคิวเปิดให้จองในวันนี้</p>
+              <p className="text-sm text-black/50 dark:text-white/65">ยังไม่มีคิวเปิดให้จองในวันนี้</p>
             )}
 
             {!loadingDay && !dateClosed && slots && slots.length > 0 && (
@@ -247,7 +247,7 @@ export default function BookingCalendar() {
                         <p className="font-medium">
                           {slot.startTime} - {slot.endTime}
                         </p>
-                        <p className="text-xs text-black/50 dark:text-white/50">
+                        <p className="text-xs text-black/50 dark:text-white/65">
                           {slot.counselorName}
                           {slot.counselorTitle ? ` · ${slot.counselorTitle}` : ""}
                         </p>
@@ -369,7 +369,7 @@ function BookingModal({
         {success ? (
           <div className="text-center">
             <p className="text-lg font-semibold text-brand-pink-dark">จองคิวสำเร็จ!</p>
-            <p className="mt-2 text-sm text-black/60 dark:text-white/60">
+            <p className="mt-2 text-sm text-black/60 dark:text-white/75">
               ระบบได้บันทึกการจองของคุณแล้ว เจ้าหน้าที่ศูนย์ให้คำปรึกษาจะติดต่อกลับเพื่อยืนยันวันเวลาที่นัดหมาย
               ผ่านเบอร์โทรศัพท์ 0-2244-5006
             </p>
@@ -377,7 +377,7 @@ function BookingModal({
         ) : (
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
             <h3 className="text-lg font-semibold text-brand-blue-dark">จองคิวให้คำปรึกษา</h3>
-            <p className="text-sm text-black/60 dark:text-white/60">
+            <p className="text-sm text-black/60 dark:text-white/75">
               {dateLabel} · {slot.startTime}-{slot.endTime} น. กับ {slot.counselorName}
             </p>
 
@@ -567,7 +567,7 @@ function BookingModal({
               </ol>
             </div>
 
-            {error && <p className="text-sm text-red-600">{error}</p>}
+            {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
             <div className="mt-2 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button type="button" onClick={onClose} className="btn btn-ghost">

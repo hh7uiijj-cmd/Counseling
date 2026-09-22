@@ -292,7 +292,7 @@ export default function SlotsPage() {
               {formatDate(cd.date)} {cd.reason ? `(${cd.reason})` : ""}
               <button
                 onClick={() => handleRemoveClosedDate(cd.id)}
-                className="btn-link text-red-600"
+                className="btn-link text-red-600 dark:text-red-400"
               >
                 ลบ
               </button>
@@ -304,7 +304,7 @@ export default function SlotsPage() {
       <section>
         <h2 className="mb-3 font-medium">คิวที่สร้างไว้ (ล่าสุด 100 รายการ)</h2>
         {loading ? (
-          <p className="text-sm text-black/50">กำลังโหลด...</p>
+          <p className="text-sm text-black/50 dark:text-white/65">กำลังโหลด...</p>
         ) : (
           <div className="overflow-x-auto rounded-xl border border-black/10 dark:border-white/10">
             <table className="w-full text-sm">
@@ -339,7 +339,7 @@ export default function SlotsPage() {
                     <td className="p-2 text-right">
                       <button
                         onClick={() => handleDeleteSlot(s.id)}
-                        className="btn-link text-red-600"
+                        className="btn-link text-red-600 dark:text-red-400"
                       >
                         ลบคิว
                       </button>

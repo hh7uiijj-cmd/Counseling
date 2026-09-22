@@ -3,14 +3,21 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { BookingStatus } from "@/generated/prisma/enums";
 
-const updateSchema = z.object({
-  status: z.enum([
-    BookingStatus.PENDING,
-    BookingStatus.CONFIRMED,
-    BookingStatus.CANCELLED,
-    BookingStatus.COMPLETED,
-  ]),
-});
+const updateSchema = z
+  .object({
+    status: z
+      .enum([
+        BookingStatus.PENDING,
+        BookingStatus.CONFIRMED,
+        BookingStatus.CANCELLED,
+        BookingStatus.COMPLETED,
+      ])
+      .optional(),
+    newSlotId: z.string().min(1).optional(),
+  })
+  .refine((data) => data.status !== undefined || data.newSlotId !== undefined, {
+    message: "ต้องระบุ status หรือ newSlotId อย่างน้อยหนึ่งอย่าง",
+  });
 
 export async function PATCH(
   request: NextRequest,
@@ -23,11 +30,71 @@ export async function PATCH(
     return NextResponse.json({ error: "invalid_input" }, { status: 400 });
   }
 
-  const booking = await prisma.booking.update({
-    where: { id },
-    data: { status: parsed.data.status },
-    include: { slot: { include: { counselor: true } } },
+  const { status, newSlotId } = parsed.data;
+
+  if (!newSlotId) {
+    const booking = await prisma.booking.update({
+      where: { id },
+      data: { status },
+      include: { slot: { include: { counselor: true } } },
+    });
+    return NextResponse.json({ booking });
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const currentBooking = await tx.booking.findUnique({ where: { id } });
+    if (!currentBooking) {
+      return { error: "booking_not_found" as const };
+    }
+
+    const newSlot = await tx.slot.findUnique({
+      where: { id: newSlotId },
+      include: { booking: true, counselor: true },
+    });
+    if (!newSlot || !newSlot.counselor.active) {
+      return { error: "slot_not_found" as const };
+    }
+    if (
+      newSlot.booking &&
+      newSlot.booking.id !== currentBooking.id &&
+      newSlot.booking.status !== BookingStatus.CANCELLED
+    ) {
+      return { error: "slot_taken" as const };
+    }
+
+    const closedDate = await tx.closedDate.findUnique({ where: { date: newSlot.date } });
+    if (closedDate) {
+      return { error: "date_closed" as const };
+    }
+
+    // If another (cancelled) booking already occupies the target slot, remove it
+    // so the unique slotId constraint doesn't block moving this booking there.
+    if (newSlot.booking && newSlot.booking.id !== currentBooking.id) {
+      await tx.booking.delete({ where: { id: newSlot.booking.id } });
+    }
+
+    const booking = await tx.booking.update({
+      where: { id },
+      data: { slotId: newSlotId, ...(status ? { status } : {}) },
+      include: { slot: { include: { counselor: true } } },
+    });
+
+    return { booking };
   });
 
-  return NextResponse.json({ booking });
+  if ("error" in result) {
+    const statusCode = result.error === "booking_not_found" || result.error === "slot_not_found" ? 404 : 409;
+    return NextResponse.json({ error: result.error }, { status: statusCode });
+  }
+
+  return NextResponse.json({ booking: result.booking });
+}
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  await prisma.booking.delete({ where: { id } });
+  return NextResponse.json({ ok: true });
 }

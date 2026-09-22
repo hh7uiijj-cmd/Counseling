@@ -26,7 +26,7 @@ export default function AdminNav({ username }: { username: string }) {
     <nav className="flex shrink-0 flex-col border-b border-black/10 p-3 sm:p-4 md:h-screen md:w-56 md:justify-between md:border-r md:border-b-0 dark:border-white/10">
       <div>
         <div className="mb-3 flex items-center justify-between gap-2 md:mb-4 md:block">
-          <p className="truncate px-2 text-sm text-black/50 dark:text-white/50">
+          <p className="truncate px-2 text-sm text-black/50 dark:text-white/65">
             เข้าสู่ระบบเป็น <span className="font-medium">{username}</span>
           </p>
           <ThemeToggle className="shrink-0 md:hidden" />
@@ -50,7 +50,7 @@ export default function AdminNav({ username }: { username: string }) {
         </ul>
       </div>
       <div className="mt-3 flex items-center justify-between md:mt-0">
-        <button onClick={handleLogout} className="btn-link text-red-600">
+        <button onClick={handleLogout} className="btn-link text-red-600 dark:text-red-400">
           ออกจากระบบ
         </button>
         <ThemeToggle className="hidden md:inline-flex" />

@@ -62,7 +62,7 @@ function LoginForm() {
           className="mt-1 w-full rounded-xl border border-black/15 p-2 text-sm outline-none transition focus:border-brand-blue focus:ring-2 focus:ring-brand-blue-light dark:border-white/20 dark:bg-transparent"
         />
       </label>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
       <button
         type="submit"
         disabled={submitting}

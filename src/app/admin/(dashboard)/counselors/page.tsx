@@ -114,10 +114,10 @@ export default function CounselorsPage() {
           เพิ่มผู้ให้คำปรึกษา
         </button>
       </form>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
       {loading ? (
-        <p className="text-sm text-black/50">กำลังโหลด...</p>
+        <p className="text-sm text-black/50 dark:text-white/65">กำลังโหลด...</p>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-black/10 dark:border-white/10">
           <table className="w-full text-sm">
@@ -159,7 +159,7 @@ export default function CounselorsPage() {
                   <td className="p-2 text-right">
                     <button
                       onClick={() => handleDelete(c)}
-                      className="btn-link text-red-600"
+                      className="btn-link text-red-600 dark:text-red-400"
                     >
                       ลบ
                     </button>

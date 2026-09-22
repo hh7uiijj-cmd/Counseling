@@ -37,6 +37,14 @@ type Booking = {
   };
 };
 
+type AvailableSlot = {
+  id: string;
+  counselorName: string;
+  startTime: string;
+  endTime: string;
+  available: boolean;
+};
+
 function formatDateTime(iso: string) {
   return new Intl.DateTimeFormat("th-TH", {
     timeZone: "Asia/Bangkok",
@@ -94,6 +102,35 @@ function BookingsInner() {
     setDetailBooking(null);
   }
 
+  async function rescheduleBooking(id: string, newSlotId: string) {
+    const res = await fetch(`/api/admin/bookings/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ newSlotId }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      const message =
+        data.error === "slot_taken"
+          ? "คิวนี้ถูกจองไปแล้ว กรุณาเลือกคิวอื่น"
+          : data.error === "date_closed"
+          ? "วันนี้ปิดทำการ กรุณาเลือกวันอื่น"
+          : "เลื่อนนัดไม่สำเร็จ กรุณาลองใหม่";
+      alert(message);
+      return false;
+    }
+    load(status);
+    setDetailBooking(null);
+    return true;
+  }
+
+  async function deleteBooking(id: string) {
+    if (!confirm("ต้องการลบการจองนี้ถาวรหรือไม่? การลบไม่สามารถย้อนกลับได้")) return;
+    await fetch(`/api/admin/bookings/${id}`, { method: "DELETE" });
+    load(status);
+    setDetailBooking(null);
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -112,9 +149,9 @@ function BookingsInner() {
       </div>
 
       {loading ? (
-        <p className="text-sm text-black/50">กำลังโหลด...</p>
+        <p className="text-sm text-black/50 dark:text-white/65">กำลังโหลด...</p>
       ) : bookings.length === 0 ? (
-        <p className="text-sm text-black/50">ไม่มีรายการ</p>
+        <p className="text-sm text-black/50 dark:text-white/65">ไม่มีรายการ</p>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-black/10 dark:border-white/10">
           <table className="w-full text-sm">
@@ -142,17 +179,14 @@ function BookingsInner() {
                   <td className="p-2">
                     {FACULTY_LABELS[b.faculty] || b.faculty}
                     <br />
-                    <span className="text-xs text-black/50 dark:text-white/50">{b.major}</span>
+                    <span className="text-xs text-black/50 dark:text-white/65">{b.major}</span>
                   </td>
                   <td className="p-2">{topicLabel(b)}</td>
                   <td className="p-2">
                     <StatusBadge status={b.status} />
                   </td>
                   <td className="p-2">
-                    <button
-                      onClick={() => setDetailBooking(b)}
-                      className="btn-link"
-                    >
+                    <button onClick={() => setDetailBooking(b)} className="btn-link">
                       ดูรายละเอียด
                     </button>
                   </td>
@@ -168,6 +202,8 @@ function BookingsInner() {
           booking={detailBooking}
           onClose={() => setDetailBooking(null)}
           onUpdateStatus={(newStatus) => updateStatus(detailBooking.id, newStatus)}
+          onReschedule={(newSlotId) => rescheduleBooking(detailBooking.id, newSlotId)}
+          onDelete={() => deleteBooking(detailBooking.id)}
         />
       )}
     </div>
@@ -177,7 +213,7 @@ function BookingsInner() {
 function detailField(label: string, value: string) {
   return (
     <div className="flex justify-between gap-4 border-b border-black/5 py-1.5 text-sm last:border-0 dark:border-white/10">
-      <span className="text-black/50 dark:text-white/50">{label}</span>
+      <span className="text-black/50 dark:text-white/65">{label}</span>
       <span className="text-right">{value}</span>
     </div>
   );
@@ -187,14 +223,41 @@ function BookingDetailModal({
   booking,
   onClose,
   onUpdateStatus,
+  onReschedule,
+  onDelete,
 }: {
   booking: Booking;
   onClose: () => void;
   onUpdateStatus: (status: string) => void;
+  onReschedule: (newSlotId: string) => Promise<boolean>;
+  onDelete: () => void;
 }) {
+  const [showReschedule, setShowReschedule] = useState(false);
+  const [rescheduleDate, setRescheduleDate] = useState("");
+  const [availableSlots, setAvailableSlots] = useState<AvailableSlot[] | null>(null);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [movingSlotId, setMovingSlotId] = useState<string | null>(null);
+
+  function loadSlotsForDate(dateStr: string) {
+    setRescheduleDate(dateStr);
+    setAvailableSlots(null);
+    if (!dateStr) return;
+    setLoadingSlots(true);
+    fetch(`/api/availability/${dateStr}`)
+      .then((res) => res.json())
+      .then((data) => setAvailableSlots(data.slots || []))
+      .finally(() => setLoadingSlots(false));
+  }
+
+  async function handleMove(slotId: string) {
+    setMovingSlotId(slotId);
+    await onReschedule(slotId);
+    setMovingSlotId(null);
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-6 shadow-xl dark:bg-neutral-900">
+      <div className="card max-h-[90vh] w-full max-w-md overflow-y-auto p-4 shadow-xl sm:p-6">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-lg font-semibold">รายละเอียดการจอง</h3>
           <StatusBadge status={booking.status} />
@@ -224,34 +287,84 @@ function BookingDetailModal({
           {detailField("แจ้งเตือน LINE กลุ่ม", booking.lineNotified ? "ส่งแล้ว" : "ยังไม่ได้ส่ง")}
         </div>
 
-        <div className="mt-4 flex flex-wrap justify-end gap-2">
+        <div className="mt-4">
           <button
-            onClick={onClose}
-            className="btn btn-ghost"
+            onClick={() => setShowReschedule((v) => !v)}
+            className="btn btn-secondary btn-sm w-full"
           >
+            {showReschedule ? "ซ่อนการเลื่อนนัด" : "เลื่อนนัด (ย้ายไปวัน/เวลาอื่น)"}
+          </button>
+
+          {showReschedule && (
+            <div className="mt-3 rounded-xl border border-black/10 p-3 dark:border-white/10">
+              <label className="text-sm font-medium">
+                เลือกวันที่ใหม่
+                <input
+                  type="date"
+                  value={rescheduleDate}
+                  onChange={(e) => loadSlotsForDate(e.target.value)}
+                  className="field"
+                />
+              </label>
+
+              {loadingSlots && (
+                <p className="mt-2 text-sm text-black/50 dark:text-white/65">กำลังโหลดคิวว่าง...</p>
+              )}
+
+              {!loadingSlots && availableSlots && availableSlots.length === 0 && (
+                <p className="mt-2 text-sm text-black/50 dark:text-white/65">ไม่มีคิวในวันนี้</p>
+              )}
+
+              {!loadingSlots && availableSlots && availableSlots.length > 0 && (
+                <ul className="mt-2 flex flex-col gap-1.5">
+                  {availableSlots.map((s) => (
+                    <li
+                      key={s.id}
+                      className="flex items-center justify-between rounded-lg border border-black/10 p-2 text-sm dark:border-white/10"
+                    >
+                      <span>
+                        {s.startTime}-{s.endTime} · {s.counselorName}
+                      </span>
+                      {s.available ? (
+                        <button
+                          onClick={() => handleMove(s.id)}
+                          disabled={movingSlotId !== null}
+                          className="btn btn-primary btn-sm"
+                        >
+                          {movingSlotId === s.id ? "กำลังย้าย..." : "ย้ายมาที่นี่"}
+                        </button>
+                      ) : (
+                        <span className="rounded-full bg-gray-200 px-3 py-1.5 text-xs text-gray-500 dark:bg-white/10">
+                          ไม่ว่าง
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-4 flex flex-wrap justify-end gap-2">
+          <button onClick={onDelete} className="btn btn-danger">
+            ลบถาวร
+          </button>
+          <button onClick={onClose} className="btn btn-ghost">
             ปิด
           </button>
           {booking.status !== "CONFIRMED" && (
-            <button
-              onClick={() => onUpdateStatus("CONFIRMED")}
-              className="btn btn-success"
-            >
+            <button onClick={() => onUpdateStatus("CONFIRMED")} className="btn btn-success">
               ยืนยัน
             </button>
           )}
           {booking.status !== "COMPLETED" && (
-            <button
-              onClick={() => onUpdateStatus("COMPLETED")}
-              className="btn btn-primary"
-            >
+            <button onClick={() => onUpdateStatus("COMPLETED")} className="btn btn-primary">
               เสร็จสิ้น
             </button>
           )}
           {booking.status !== "CANCELLED" && (
-            <button
-              onClick={() => onUpdateStatus("CANCELLED")}
-              className="btn btn-danger"
-            >
+            <button onClick={() => onUpdateStatus("CANCELLED")} className="btn btn-danger">
               ยกเลิก
             </button>
           )}

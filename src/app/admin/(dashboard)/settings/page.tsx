@@ -84,7 +84,7 @@ export default function SettingsPage() {
             </button>
           </div>
           {passwordResult && (
-            <p className={`text-sm ${passwordResult.ok ? "text-green-600" : "text-red-600"}`}>
+            <p className={`text-sm ${passwordResult.ok ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
               {passwordResult.message}
             </p>
           )}
@@ -95,7 +95,7 @@ export default function SettingsPage() {
 
       <section className="rounded-xl border border-black/10 p-4 dark:border-white/10">
         <h2 className="mb-2 font-medium">ขั้นตอนการตั้งค่า (ทำครั้งเดียว)</h2>
-        <ol className="list-decimal space-y-2 pl-5 text-sm text-black/70 dark:text-white/70">
+        <ol className="list-decimal space-y-2 pl-5 text-sm text-black/70 dark:text-white/80">
           <li>
             สร้าง LINE Official Account และเปิดใช้งาน Messaging API ที่{" "}
             <span className="font-mono">LINE Developers Console</span>
@@ -121,7 +121,7 @@ LINE_GROUP_ID="..."`}
 
       <section className="rounded-xl border border-black/10 p-4 dark:border-white/10">
         <h2 className="mb-2 font-medium">ทดสอบการแจ้งเตือน</h2>
-        <p className="mb-3 text-sm text-black/60 dark:text-white/60">
+        <p className="mb-3 text-sm text-black/60 dark:text-white/75">
           ระบบจะส่งข้อความทดสอบไปยังกลุ่ม LINE ที่ตั้งค่าไว้
         </p>
         <button
@@ -132,7 +132,7 @@ LINE_GROUP_ID="..."`}
           {testing ? "กำลังส่ง..." : "ส่งข้อความทดสอบ"}
         </button>
         {result && (
-          <p className={`mt-3 text-sm ${result.ok ? "text-green-600" : "text-red-600"}`}>
+          <p className={`mt-3 text-sm ${result.ok ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
             {result.message}
           </p>
         )}
@@ -140,7 +140,7 @@ LINE_GROUP_ID="..."`}
 
       <section className="rounded-xl border border-black/10 p-4 dark:border-white/10">
         <h2 className="mb-2 font-medium">ปฏิทินใน LINE</h2>
-        <p className="text-sm text-black/60 dark:text-white/60">
+        <p className="text-sm text-black/60 dark:text-white/75">
           สมาชิกในกลุ่มสามารถพิมพ์ <span className="font-mono">&quot;ตารางวันนี้&quot;</span> หรือ{" "}
           <span className="font-mono">&quot;ตารางพรุ่งนี้&quot;</span> เพื่อให้บอทตอบกลับตารางคิวในรูปแบบการ์ดปฏิทิน
           ได้ทันที (ต้องตั้งค่า Webhook URL ก่อน)

@@ -35,7 +35,7 @@ export default async function DashboardPage() {
       <div>
         <h2 className="mb-2 font-medium">นัดหมายที่ใกล้ถึง</h2>
         {upcoming.length === 0 ? (
-          <p className="text-sm text-black/50">ไม่มีนัดหมายใน 7 วันข้างหน้า</p>
+          <p className="text-sm text-black/50 dark:text-white/65">ไม่มีนัดหมายใน 7 วันข้างหน้า</p>
         ) : (
           <div className="overflow-x-auto rounded-xl border border-black/10 dark:border-white/10">
             <table className="w-full text-sm">
@@ -77,7 +77,7 @@ function StatCard({ label, value, href }: { label: string; value: number; href: 
       href={href}
       className="rounded-xl border border-black/10 p-4 hover:border-blue-400 dark:border-white/10"
     >
-      <p className="text-sm text-black/50 dark:text-white/50">{label}</p>
+      <p className="text-sm text-black/50 dark:text-white/65">{label}</p>
       <p className="mt-1 text-2xl font-bold">{value}</p>
     </Link>
   );
