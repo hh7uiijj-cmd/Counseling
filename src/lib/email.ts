@@ -14,6 +14,7 @@ export function isEmailConfigured() {
 export async function sendBookingConfirmationEmail(params: {
   to: string;
   clientName: string;
+  studentId?: string | null;
   counselorName: string;
   dateKey: string;
   startTime: string;
@@ -27,7 +28,10 @@ export async function sendBookingConfirmationEmail(params: {
   }
 
   const from = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
-  const dateLabel = thaiDateLabel(params.dateKey);
+  const baseUrl = process.env.APP_BASE_URL;
+  const hasValidBaseUrl = Boolean(baseUrl && /^https?:\/\//.test(baseUrl));
+  const logoUrl = hasValidBaseUrl ? `${baseUrl}/brand/logo.png` : null;
+  const dateTimeLabel = `${thaiDateLabel(params.dateKey)} เวลา ${params.startTime} - ${params.endTime} น.`;
 
   try {
     const result = await client.emails.send({
@@ -36,29 +40,25 @@ export async function sendBookingConfirmationEmail(params: {
       subject: "ยืนยันการจองคิวรับคำปรึกษา",
       html: `
         <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; color: #111827;">
-          <h2 style="color: #2563eb;">ยืนยันการจองคิวรับคำปรึกษา ✅</h2>
-          <p>เรียน คุณ${escapeHtml(params.clientName)}</p>
-          <p>การจองคิวรับคำปรึกษาของคุณได้รับการยืนยันแล้ว รายละเอียดมีดังนี้</p>
-          <table style="border-collapse: collapse; width: 100%; margin: 16px 0;">
-            <tr>
-              <td style="padding: 6px 0; color: #6b7280;">ผู้ให้คำปรึกษา</td>
-              <td style="padding: 6px 0;">${escapeHtml(params.counselorName)}</td>
-            </tr>
-            <tr>
-              <td style="padding: 6px 0; color: #6b7280;">วันที่</td>
-              <td style="padding: 6px 0;">${escapeHtml(dateLabel)}</td>
-            </tr>
-            <tr>
-              <td style="padding: 6px 0; color: #6b7280;">เวลา</td>
-              <td style="padding: 6px 0;">${escapeHtml(params.startTime)} - ${escapeHtml(params.endTime)} น.</td>
-            </tr>
-            <tr>
-              <td style="padding: 6px 0; color: #6b7280;">รูปแบบ</td>
-              <td style="padding: 6px 0;">${escapeHtml(params.consultationFormat)}</td>
-            </tr>
-          </table>
-          <p>หากต้องการเปลี่ยนแปลงหรือยกเลิกการนัดหมาย กรุณาติดต่อศูนย์ให้คำปรึกษาโดยตรง</p>
-          <p style="margin-top: 24px; color: #6b7280; font-size: 13px;">
+          ${
+            logoUrl
+              ? `<div style="text-align: center; margin-bottom: 16px;">
+                   <img src="${logoUrl}" alt="ศูนย์ให้คำปรึกษา มหาวิทยาลัยสวนดุสิต" style="width: 96px; height: 96px;" />
+                 </div>`
+              : ""
+          }
+          <h2 style="color: #2563eb; text-align: center;">ยืนยันการจองคิวรับคำปรึกษา ✅</h2>
+          <p style="line-height: 1.8;">
+            สวัสดีคุณ${escapeHtml(params.clientName)}
+            ${params.studentId ? ` รหัสนักศึกษา ${escapeHtml(params.studentId)}` : ""}
+            ขณะนี้ทาง ศูนย์ให้คำปรึกษา มหาวิทยาลัยสวนดุสิต ได้รับการนัดหมายและยืนยันการเข้ารับคำปรึกษาในรูปแบบ
+            ${escapeHtml(params.consultationFormat)} ใน ${escapeHtml(dateTimeLabel)} แล้ว
+          </p>
+          <p style="line-height: 1.8;">
+            หากเกิดปัญหาหรือแจ้งเปลี่ยนข้อมูลสามารถติดต่อได้ผ่านเบอร์โทรศัพท์ 0-2244-5006
+            ตั้งแต่ วันจันทร์ - วันศุกร์ ตั้งแต่เวลา 8:30 - 15:30 น.
+          </p>
+          <p style="margin-top: 24px; color: #6b7280; font-size: 13px; text-align: center;">
             ศูนย์ให้คำปรึกษา มหาวิทยาลัยสวนดุสิต
           </p>
         </div>

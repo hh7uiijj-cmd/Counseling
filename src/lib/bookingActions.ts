@@ -8,6 +8,7 @@ import { FORMAT_LABELS } from "@/lib/formOptions";
 type BookingWithSlot = {
   clientName: string;
   clientEmail: string;
+  studentId: string | null;
   consultationFormat: string;
   slot: {
     date: Date;
@@ -41,6 +42,7 @@ export async function notifyBookingStatus(booking: BookingWithSlot, status: Book
       await sendBookingConfirmationEmail({
         to: booking.clientEmail,
         clientName: booking.clientName,
+        studentId: booking.studentId,
         counselorName: booking.slot.counselor.name,
         dateKey,
         startTime,
