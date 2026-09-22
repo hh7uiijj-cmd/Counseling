@@ -3,13 +3,28 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import StatusBadge from "@/components/admin/StatusBadge";
+import {
+  GENDER_LABELS,
+  YEAR_LEVEL_LABELS,
+  FACULTY_LABELS,
+  TOPIC_LABELS,
+  FORMAT_LABELS,
+} from "@/lib/formOptions";
 
 type Booking = {
   id: string;
   clientName: string;
+  studentId: string | null;
+  gender: string;
+  yearLevel: string;
+  faculty: string;
+  major: string;
+  topicCategory: string;
+  topicOther: string | null;
+  consultationFormat: string;
   clientPhone: string;
-  clientEmail: string | null;
-  topic: string | null;
+  clientEmail: string;
+  lineId: string;
   note: string | null;
   status: string;
   lineNotified: boolean;
@@ -39,12 +54,18 @@ function formatDate(iso: string) {
   }).format(new Date(iso));
 }
 
+function topicLabel(b: Booking) {
+  if (b.topicCategory === "OTHER") return b.topicOther || TOPIC_LABELS.OTHER;
+  return TOPIC_LABELS[b.topicCategory] || b.topicCategory;
+}
+
 function BookingsInner() {
   const searchParams = useSearchParams();
   const initialStatus = searchParams.get("status") || "";
   const [status, setStatus] = useState(initialStatus);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [detailBooking, setDetailBooking] = useState<Booking | null>(null);
 
   function load(currentStatus: string) {
     const qs = currentStatus ? `?status=${currentStatus}` : "";
@@ -70,6 +91,7 @@ function BookingsInner() {
       body: JSON.stringify({ status: newStatus }),
     });
     load(status);
+    setDetailBooking(null);
   }
 
   return (
@@ -101,10 +123,9 @@ function BookingsInner() {
                 <th className="p-2">วันที่/เวลา</th>
                 <th className="p-2">ผู้ให้คำปรึกษา</th>
                 <th className="p-2">ผู้จอง</th>
-                <th className="p-2">ติดต่อ</th>
+                <th className="p-2">คณะ/สาขา</th>
                 <th className="p-2">หัวข้อ</th>
                 <th className="p-2">สถานะ</th>
-                <th className="p-2">แจ้งไลน์แล้ว</th>
                 <th className="p-2"></th>
               </tr>
             </thead>
@@ -119,42 +140,21 @@ function BookingsInner() {
                   <td className="p-2">{b.slot.counselor.name}</td>
                   <td className="p-2">{b.clientName}</td>
                   <td className="p-2">
-                    {b.clientPhone}
-                    {b.clientEmail ? <br /> : null}
-                    {b.clientEmail}
+                    {FACULTY_LABELS[b.faculty] || b.faculty}
+                    <br />
+                    <span className="text-xs text-black/50 dark:text-white/50">{b.major}</span>
                   </td>
-                  <td className="p-2">{b.topic || "-"}</td>
+                  <td className="p-2">{topicLabel(b)}</td>
                   <td className="p-2">
                     <StatusBadge status={b.status} />
                   </td>
-                  <td className="p-2">{b.lineNotified ? "✅" : "—"}</td>
                   <td className="p-2">
-                    <div className="flex flex-col gap-1">
-                      {b.status !== "CONFIRMED" && (
-                        <button
-                          onClick={() => updateStatus(b.id, "CONFIRMED")}
-                          className="text-xs text-green-700 hover:underline"
-                        >
-                          ยืนยัน
-                        </button>
-                      )}
-                      {b.status !== "COMPLETED" && (
-                        <button
-                          onClick={() => updateStatus(b.id, "COMPLETED")}
-                          className="text-xs text-blue-700 hover:underline"
-                        >
-                          เสร็จสิ้น
-                        </button>
-                      )}
-                      {b.status !== "CANCELLED" && (
-                        <button
-                          onClick={() => updateStatus(b.id, "CANCELLED")}
-                          className="text-xs text-red-600 hover:underline"
-                        >
-                          ยกเลิก
-                        </button>
-                      )}
-                    </div>
+                    <button
+                      onClick={() => setDetailBooking(b)}
+                      className="text-xs text-blue-700 hover:underline"
+                    >
+                      ดูรายละเอียด
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -162,6 +162,101 @@ function BookingsInner() {
           </table>
         </div>
       )}
+
+      {detailBooking && (
+        <BookingDetailModal
+          booking={detailBooking}
+          onClose={() => setDetailBooking(null)}
+          onUpdateStatus={(newStatus) => updateStatus(detailBooking.id, newStatus)}
+        />
+      )}
+    </div>
+  );
+}
+
+function detailField(label: string, value: string) {
+  return (
+    <div className="flex justify-between gap-4 border-b border-black/5 py-1.5 text-sm last:border-0 dark:border-white/10">
+      <span className="text-black/50 dark:text-white/50">{label}</span>
+      <span className="text-right">{value}</span>
+    </div>
+  );
+}
+
+function BookingDetailModal({
+  booking,
+  onClose,
+  onUpdateStatus,
+}: {
+  booking: Booking;
+  onClose: () => void;
+  onUpdateStatus: (status: string) => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-6 shadow-xl dark:bg-neutral-900">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-lg font-semibold">รายละเอียดการจอง</h3>
+          <StatusBadge status={booking.status} />
+        </div>
+
+        <div className="mb-3 rounded-lg bg-black/5 p-2 text-sm dark:bg-white/10">
+          {formatDate(booking.slot.date)} · {formatDateTime(booking.slot.startsAt)}-
+          {formatDateTime(booking.slot.endsAt)} น. กับ {booking.slot.counselor.name}
+        </div>
+
+        <div className="flex flex-col">
+          {detailField("ชื่อ-นามสกุล", booking.clientName)}
+          {detailField("เลขระเบียน", booking.studentId || "-")}
+          {detailField("เพศ", GENDER_LABELS[booking.gender] || booking.gender)}
+          {detailField("ชั้นปี", YEAR_LEVEL_LABELS[booking.yearLevel] || booking.yearLevel)}
+          {detailField("คณะ/โรงเรียน/วิทยาเขต", FACULTY_LABELS[booking.faculty] || booking.faculty)}
+          {detailField("หลักสูตร/สาขาวิชา", booking.major)}
+          {detailField("เรื่องที่ขอรับคำปรึกษา", topicLabel(booking))}
+          {detailField(
+            "รูปแบบการให้คำปรึกษา",
+            FORMAT_LABELS[booking.consultationFormat] || booking.consultationFormat
+          )}
+          {detailField("เบอร์โทรศัพท์", booking.clientPhone)}
+          {detailField("E-mail", booking.clientEmail)}
+          {detailField("ID Line", booking.lineId)}
+          {detailField("รายละเอียดเพิ่มเติม", booking.note || "-")}
+          {detailField("แจ้งเตือน LINE กลุ่ม", booking.lineNotified ? "ส่งแล้ว" : "ยังไม่ได้ส่ง")}
+        </div>
+
+        <div className="mt-4 flex flex-wrap justify-end gap-2">
+          <button
+            onClick={onClose}
+            className="rounded-lg px-4 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/10"
+          >
+            ปิด
+          </button>
+          {booking.status !== "CONFIRMED" && (
+            <button
+              onClick={() => onUpdateStatus("CONFIRMED")}
+              className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+            >
+              ยืนยัน
+            </button>
+          )}
+          {booking.status !== "COMPLETED" && (
+            <button
+              onClick={() => onUpdateStatus("COMPLETED")}
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            >
+              เสร็จสิ้น
+            </button>
+          )}
+          {booking.status !== "CANCELLED" && (
+            <button
+              onClick={() => onUpdateStatus("CANCELLED")}
+              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+            >
+              ยกเลิก
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

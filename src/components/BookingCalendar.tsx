@@ -7,6 +7,13 @@ import {
   THAI_WEEKDAYS_SHORT,
   todayKey,
 } from "@/lib/calendarGrid";
+import {
+  GENDER_OPTIONS,
+  YEAR_LEVEL_OPTIONS,
+  FACULTY_OPTIONS,
+  TOPIC_OPTIONS,
+  FORMAT_OPTIONS,
+} from "@/lib/formOptions";
 
 type DaySummary = {
   date: string;
@@ -279,6 +286,9 @@ export default function BookingCalendar() {
   );
 }
 
+const inputClass =
+  "mt-1 w-full rounded-lg border border-black/20 p-2 text-sm dark:border-white/20 dark:bg-transparent";
+
 function BookingModal({
   slot,
   dateLabel,
@@ -291,9 +301,17 @@ function BookingModal({
   onSuccess: () => void;
 }) {
   const [clientName, setClientName] = useState("");
+  const [studentId, setStudentId] = useState("");
+  const [gender, setGender] = useState("");
+  const [yearLevel, setYearLevel] = useState("");
+  const [faculty, setFaculty] = useState("");
+  const [major, setMajor] = useState("");
+  const [topicCategory, setTopicCategory] = useState("");
+  const [topicOther, setTopicOther] = useState("");
+  const [consultationFormat, setConsultationFormat] = useState("");
   const [clientPhone, setClientPhone] = useState("");
   const [clientEmail, setClientEmail] = useState("");
-  const [topic, setTopic] = useState("");
+  const [lineId, setLineId] = useState("");
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -310,9 +328,17 @@ function BookingModal({
         body: JSON.stringify({
           slotId: slot.id,
           clientName,
+          studentId: studentId || undefined,
+          gender,
+          yearLevel,
+          faculty,
+          major,
+          topicCategory,
+          topicOther: topicOther || undefined,
+          consultationFormat,
           clientPhone,
-          clientEmail: clientEmail || undefined,
-          topic: topic || undefined,
+          clientEmail,
+          lineId,
           note: note || undefined,
         }),
       });
@@ -323,12 +349,12 @@ function BookingModal({
         } else if (data.error === "date_closed") {
           setError("วันนี้ปิดทำการแล้ว กรุณาเลือกวันอื่น");
         } else {
-          setError("เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง");
+          setError("กรุณาตรวจสอบข้อมูลในฟอร์มอีกครั้ง");
         }
         return;
       }
       setSuccess(true);
-      setTimeout(onSuccess, 1200);
+      setTimeout(onSuccess, 1500);
     } catch {
       setError("เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง");
     } finally {
@@ -338,12 +364,13 @@ function BookingModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-neutral-900">
+      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl dark:bg-neutral-900">
         {success ? (
           <div className="text-center">
             <p className="text-lg font-semibold text-green-600">จองคิวสำเร็จ!</p>
             <p className="mt-2 text-sm text-black/60 dark:text-white/60">
-              ระบบได้บันทึกการจองของคุณแล้ว เจ้าหน้าที่จะติดต่อยืนยันกลับไป
+              ระบบได้บันทึกการจองของคุณแล้ว เจ้าหน้าที่ศูนย์ให้คำปรึกษาจะติดต่อกลับเพื่อยืนยันวันเวลาที่นัดหมาย
+              ผ่านเบอร์โทรศัพท์ 0-2244-5006
             </p>
           </div>
         ) : (
@@ -359,48 +386,185 @@ function BookingModal({
                 required
                 value={clientName}
                 onChange={(e) => setClientName(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-black/20 p-2 text-sm dark:border-white/20 dark:bg-transparent"
+                className={inputClass}
               />
             </label>
 
             <label className="text-sm font-medium">
-              เบอร์โทรศัพท์ *
+              เลขระเบียน
+              <input
+                value={studentId}
+                onChange={(e) => setStudentId(e.target.value)}
+                className={inputClass}
+              />
+            </label>
+
+            <label className="text-sm font-medium">
+              เพศ *
+              <select required value={gender} onChange={(e) => setGender(e.target.value)} className={inputClass}>
+                <option value="" disabled>
+                  เลือกเพศ
+                </option>
+                {GENDER_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="text-sm font-medium">
+              ชั้นปี *
+              <select
+                required
+                value={yearLevel}
+                onChange={(e) => setYearLevel(e.target.value)}
+                className={inputClass}
+              >
+                <option value="" disabled>
+                  เลือกชั้นปี
+                </option>
+                {YEAR_LEVEL_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="text-sm font-medium">
+              คณะ/โรงเรียน/วิทยาเขต/ศูนย์การศึกษา *
+              <select
+                required
+                value={faculty}
+                onChange={(e) => setFaculty(e.target.value)}
+                className={inputClass}
+              >
+                <option value="" disabled>
+                  เลือกคณะ/โรงเรียน/วิทยาเขต
+                </option>
+                {FACULTY_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="text-sm font-medium">
+              หลักสูตร/สาขาวิชา *
+              <input
+                required
+                value={major}
+                onChange={(e) => setMajor(e.target.value)}
+                className={inputClass}
+              />
+            </label>
+
+            <label className="text-sm font-medium">
+              เรื่องที่ขอรับคำปรึกษา *
+              <select
+                required
+                value={topicCategory}
+                onChange={(e) => setTopicCategory(e.target.value)}
+                className={inputClass}
+              >
+                <option value="" disabled>
+                  เลือกเรื่องที่ขอรับคำปรึกษา
+                </option>
+                {TOPIC_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {topicCategory === "OTHER" && (
+              <label className="text-sm font-medium">
+                ระบุรายละเอียด *
+                <input
+                  required
+                  value={topicOther}
+                  onChange={(e) => setTopicOther(e.target.value)}
+                  className={inputClass}
+                />
+              </label>
+            )}
+
+            <label className="text-sm font-medium">
+              รูปแบบการให้คำปรึกษา *
+              <select
+                required
+                value={consultationFormat}
+                onChange={(e) => setConsultationFormat(e.target.value)}
+                className={inputClass}
+              >
+                <option value="" disabled>
+                  เลือกรูปแบบ
+                </option>
+                {FORMAT_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="text-sm font-medium">
+              เบอร์โทรศัพท์มือถือ *
               <input
                 required
                 value={clientPhone}
                 onChange={(e) => setClientPhone(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-black/20 p-2 text-sm dark:border-white/20 dark:bg-transparent"
+                className={inputClass}
               />
             </label>
 
             <label className="text-sm font-medium">
-              อีเมล (ถ้ามี)
+              E-mail Address *
               <input
+                required
                 type="email"
                 value={clientEmail}
                 onChange={(e) => setClientEmail(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-black/20 p-2 text-sm dark:border-white/20 dark:bg-transparent"
+                className={inputClass}
               />
             </label>
 
             <label className="text-sm font-medium">
-              หัวข้อที่ต้องการปรึกษา
+              ID Line *
               <input
-                value={topic}
-                onChange={(e) => setTopic(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-black/20 p-2 text-sm dark:border-white/20 dark:bg-transparent"
+                required
+                value={lineId}
+                onChange={(e) => setLineId(e.target.value)}
+                className={inputClass}
               />
             </label>
 
             <label className="text-sm font-medium">
-              รายละเอียดเพิ่มเติม
+              รายละเอียดเพิ่มเติม (ถ้ามี)
               <textarea
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 rows={3}
-                className="mt-1 w-full rounded-lg border border-black/20 p-2 text-sm dark:border-white/20 dark:bg-transparent"
+                className={inputClass}
               />
             </label>
+
+            <div className="rounded-lg bg-black/5 p-3 text-xs text-black/60 dark:bg-white/10 dark:text-white/60">
+              <p className="mb-1 font-medium">รายละเอียดการรับคำปรึกษา</p>
+              <ol className="list-decimal space-y-1 pl-4">
+                <li>
+                  เมื่อเจ้าหน้าที่ศูนย์ให้คำปรึกษาได้รับข้อมูลแล้ว จะติดต่อกลับเพื่อตรวจสอบความถูกต้องของวันเวลาที่นัดหมาย
+                  ผ่านเบอร์โทรศัพท์ 0-2244-5006
+                </li>
+                <li>
+                  Online: เจ้าหน้าที่จะส่งลิงก์ MS Teams ให้ตาม E-mail ที่ให้ไว้ (กรณีรับคำปรึกษาออนไลน์
+                  กรุณานัดหมายล่วงหน้าอย่างน้อย 2 ชั่วโมง)
+                </li>
+              </ol>
+            </div>
 
             {error && <p className="text-sm text-red-600">{error}</p>}
 

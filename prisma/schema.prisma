@@ -16,6 +16,46 @@ enum BookingStatus {
   COMPLETED
 }
 
+enum Gender {
+  MALE
+  FEMALE
+  LGBTQ
+}
+
+enum YearLevel {
+  YEAR_1
+  YEAR_2
+  YEAR_3
+  YEAR_4
+}
+
+enum Faculty {
+  EDUCATION // คณะครุศาสตร์
+  SCIENCE_TECHNOLOGY // คณะวิทยาศาสตร์และเทคโนโลยี
+  HUMANITIES_SOCIAL_SCIENCES // คณะมนุษยศาสตร์และสังคมศาสตร์
+  MANAGEMENT_SCIENCE // คณะวิทยาการจัดการ
+  NURSING // คณะพยาบาลศาสตร์
+  CULINARY_ARTS // โรงเรียนการเรือน
+  TOURISM_HOSPITALITY // โรงเรียนการท่องเที่ยวและการบริการ
+  LAW_POLITICS // โรงเรียนกฎหมายและการเมือง
+  SUPHANBURI_CAMPUS // วิทยาเขตสุพรรณบุรี
+  NAKHONNAYOK_CENTER // ศูนย์การศึกษานครนายก
+  LAMPANG_CENTER // ศูนย์การศึกษาลำปาง
+  HUAHIN_CENTER // ศูนย์การศึกษาหัวหิน
+  TRANG_CENTER // ศูนย์การศึกษาตรัง
+}
+
+enum ConsultationTopic {
+  STUDY // การเรียน
+  LIFE // การใช้ชีวิต
+  OTHER // อื่นๆ
+}
+
+enum ConsultationFormat {
+  ONLINE // On Line: MS Teams
+  ONSITE // On Site: ห้อง SDU Counseling Center
+}
+
 model Admin {
   id           String   @id @default(cuid())
   username     String   @unique
@@ -62,16 +102,24 @@ model Slot {
 }
 
 model Booking {
-  id           String        @id @default(cuid())
-  slotId       String        @unique
-  slot         Slot          @relation(fields: [slotId], references: [id], onDelete: Cascade)
-  clientName   String
-  clientPhone  String
-  clientEmail  String?
-  topic        String?
-  note         String?
-  status       BookingStatus @default(PENDING)
-  lineNotified Boolean       @default(false)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  id                 String              @id @default(cuid())
+  slotId             String              @unique
+  slot               Slot                @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  clientName         String // ชื่อ-นามสกุล
+  studentId          String? // เลขระเบียน
+  gender             Gender // เพศ
+  yearLevel          YearLevel // ชั้นปี
+  faculty            Faculty // คณะ/โรงเรียน/วิทยาเขต/ศูนย์การศึกษา
+  major              String // หลักสูตร/สาขาวิชา
+  topicCategory      ConsultationTopic // เรื่องที่ขอรับคำปรึกษา
+  topicOther         String? // รายละเอียดเพิ่มเติมเมื่อเลือก "อื่นๆ"
+  consultationFormat ConsultationFormat // รูปแบบการให้คำปรึกษา
+  clientPhone        String // เบอร์โทรศัพท์มือถือ
+  clientEmail        String // E-mail Address
+  lineId             String // ID Line
+  note               String?
+  status             BookingStatus       @default(PENDING)
+  lineNotified       Boolean             @default(false)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 }
