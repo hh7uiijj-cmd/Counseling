@@ -192,6 +192,35 @@ function lineField(label: string, value: string) {
   };
 }
 
+const STATUS_LABELS: Record<string, string> = {
+  PENDING: "รอการยืนยัน",
+  CONFIRMED: "ยืนยันแล้ว ✅",
+  CANCELLED: "ยกเลิกแล้ว ❌",
+  COMPLETED: "เสร็จสิ้น",
+};
+
+export function buildStatusUpdateMessage(params: {
+  clientName: string;
+  counselorName: string;
+  dateKey: string;
+  startTime: string;
+  endTime: string;
+  status: string;
+}) {
+  const statusLabel = STATUS_LABELS[params.status] || params.status;
+  return {
+    type: "text",
+    text: [
+      "📌 อัปเดตสถานะการจอง",
+      `ผู้จอง: ${params.clientName}`,
+      `ผู้ให้คำปรึกษา: ${params.counselorName}`,
+      `วันที่: ${thaiDateLabel(params.dateKey)}`,
+      `เวลา: ${params.startTime}-${params.endTime} น.`,
+      `สถานะใหม่: ${statusLabel}`,
+    ].join("\n"),
+  };
+}
+
 export function buildScheduleFlexMessage(params: {
   dateKey: string;
   items: {
