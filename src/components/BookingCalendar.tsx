@@ -527,6 +527,7 @@ function BookingModal({
               <input
                 required
                 type="email"
+                maxLength={254}
                 value={clientEmail}
                 onChange={(e) => setClientEmail(e.target.value)}
                 className={inputClass}

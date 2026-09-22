@@ -19,7 +19,7 @@ const createSchema = z
     topicOther: z.string().max(500).optional(),
     consultationFormat: z.enum([ConsultationFormat.ONLINE, ConsultationFormat.ONSITE]),
     clientPhone: z.string().min(6).max(30),
-    clientEmail: z.string().email(),
+    clientEmail: z.string().email().max(254),
     lineId: z.string().min(1).max(100),
     note: z.string().max(1000).optional(),
   })
