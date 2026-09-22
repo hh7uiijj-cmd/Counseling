@@ -163,26 +163,55 @@ export function buildBookingFlexMessage(params: {
           lineField("สถานะ", "รอการยืนยัน"),
         ],
       },
-      ...(hasValidBaseUrl
-        ? {
-            footer: {
-              type: "box",
-              layout: "vertical",
-              contents: [
+      footer: {
+        type: "box",
+        layout: "vertical",
+        spacing: "sm",
+        contents: [
+          {
+            type: "box",
+            layout: "horizontal",
+            spacing: "sm",
+            contents: [
+              {
+                type: "button",
+                style: "primary",
+                color: "#16a34a",
+                action: {
+                  type: "postback",
+                  label: "ยืนยัน",
+                  data: `action=confirm&bookingId=${params.bookingId}`,
+                  displayText: "✅ ยืนยันการจองนี้",
+                },
+              },
+              {
+                type: "button",
+                style: "primary",
+                color: "#dc2626",
+                action: {
+                  type: "postback",
+                  label: "ยกเลิก",
+                  data: `action=cancel&bookingId=${params.bookingId}`,
+                  displayText: "❌ ยกเลิกการจองนี้",
+                },
+              },
+            ],
+          },
+          ...(hasValidBaseUrl
+            ? [
                 {
                   type: "button",
-                  style: "primary",
-                  color: "#2563eb",
+                  style: "secondary",
                   action: {
                     type: "uri",
                     label: "เปิดระบบจัดการการจอง",
                     uri: `${baseUrl}/admin/bookings`,
                   },
                 },
-              ],
-            },
-          }
-        : {}),
+              ]
+            : []),
+        ],
+      },
     },
   };
 }

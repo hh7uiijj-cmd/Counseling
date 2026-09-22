@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { BookingStatus } from "@/generated/prisma/enums";
-import { toDateKey, toTimeKey } from "@/lib/dates";
-import { buildStatusUpdateMessage, pushMessageToGroup } from "@/lib/line";
+import { notifyBookingStatus } from "@/lib/bookingActions";
 
 const updateSchema = z
   .object({
@@ -20,32 +19,6 @@ const updateSchema = z
   .refine((data) => data.status !== undefined || data.newSlotId !== undefined, {
     message: "ต้องระบุ status หรือ newSlotId อย่างน้อยหนึ่งอย่าง",
   });
-
-type BookingWithSlot = {
-  clientName: string;
-  slot: {
-    date: Date;
-    startsAt: Date;
-    endsAt: Date;
-    counselor: { name: string };
-  };
-};
-
-async function notifyStatusChange(booking: BookingWithSlot, status: BookingStatus) {
-  try {
-    const message = buildStatusUpdateMessage({
-      clientName: booking.clientName,
-      counselorName: booking.slot.counselor.name,
-      dateKey: toDateKey(booking.slot.date),
-      startTime: toTimeKey(booking.slot.startsAt),
-      endTime: toTimeKey(booking.slot.endsAt),
-      status,
-    });
-    await pushMessageToGroup([message]);
-  } catch (err) {
-    console.error("Failed to send LINE status update", err);
-  }
-}
 
 export async function PATCH(
   request: NextRequest,
@@ -66,7 +39,7 @@ export async function PATCH(
       data: { status },
       include: { slot: { include: { counselor: true } } },
     });
-    if (status) await notifyStatusChange(booking, status);
+    if (status) await notifyBookingStatus(booking, status);
     return NextResponse.json({ booking });
   }
 
@@ -116,7 +89,7 @@ export async function PATCH(
     return NextResponse.json({ error: result.error }, { status: statusCode });
   }
 
-  if (status) await notifyStatusChange(result.booking, status);
+  if (status) await notifyBookingStatus(result.booking, status);
 
   return NextResponse.json({ booking: result.booking });
 }

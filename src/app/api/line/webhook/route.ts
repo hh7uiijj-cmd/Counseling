@@ -6,7 +6,55 @@ import {
   replyMessage,
   verifyLineSignature,
 } from "@/lib/line";
+import { updateBookingStatus } from "@/lib/bookingActions";
 import { BookingStatus } from "@/generated/prisma/enums";
+
+const STATUS_LABELS: Record<string, string> = {
+  PENDING: "รอการยืนยัน",
+  CONFIRMED: "ยืนยันแล้ว ✅",
+  CANCELLED: "ยกเลิกแล้ว ❌",
+  COMPLETED: "เสร็จสิ้น",
+};
+
+async function handleBookingPostback(data: string, replyToken: string) {
+  const params = new URLSearchParams(data);
+  const action = params.get("action");
+  const bookingId = params.get("bookingId");
+  if (!bookingId || (action !== "confirm" && action !== "cancel")) return;
+
+  const targetStatus = action === "confirm" ? BookingStatus.CONFIRMED : BookingStatus.CANCELLED;
+
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: { slot: { include: { counselor: true } } },
+  });
+
+  if (!booking) {
+    await replyMessage(replyToken, [
+      { type: "text", text: "ไม่พบข้อมูลการจองนี้ อาจถูกลบไปแล้ว" },
+    ]);
+    return;
+  }
+
+  if (booking.status === targetStatus) {
+    await replyMessage(replyToken, [
+      {
+        type: "text",
+        text: `การจองของ ${booking.clientName} ถูก${STATUS_LABELS[targetStatus]}อยู่แล้ว`,
+      },
+    ]);
+    return;
+  }
+
+  const updated = await updateBookingStatus(bookingId, targetStatus);
+
+  await replyMessage(replyToken, [
+    {
+      type: "text",
+      text: `อัปเดตสถานะการจองของ ${updated.clientName} เป็น "${STATUS_LABELS[targetStatus]}" เรียบร้อยแล้ว`,
+    },
+  ]);
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type LineEvent = any;
@@ -71,6 +119,15 @@ export async function POST(request: NextRequest) {
       // Log the source id/type for every event so it can be found in deploy
       // logs even without a text command (e.g. joins, non-text messages).
       console.log("LINE event source:", JSON.stringify(event.source));
+
+      if (event.type === "postback") {
+        try {
+          await handleBookingPostback(event.postback.data as string, event.replyToken);
+        } catch (err) {
+          console.error("Failed to handle LINE postback", err);
+        }
+        return;
+      }
 
       if (event.type !== "message" || event.message?.type !== "text") return;
       const text = (event.message.text as string).trim();
