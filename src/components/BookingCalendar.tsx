@@ -114,7 +114,7 @@ export default function BookingCalendar() {
 
   return (
     <div className="grid gap-6 md:grid-cols-[1fr_360px]">
-      <div className="rounded-2xl border border-black/10 bg-white/60 p-4 shadow-sm dark:bg-white/5">
+      <div className="rounded-3xl border border-brand-pink-light bg-white/90 p-4 shadow-sm dark:border-white/10 dark:bg-white/5">
         <div className="mb-4 flex items-center justify-between">
           <button
             onClick={goPrevMonth}
@@ -123,7 +123,7 @@ export default function BookingCalendar() {
           >
             ◀
           </button>
-          <h2 className="text-lg font-semibold">
+          <h2 className="text-lg font-semibold text-brand-blue-dark">
             {THAI_MONTHS[month - 1]} {year + 543}
           </h2>
           <button
@@ -157,11 +157,13 @@ export default function BookingCalendar() {
                 disabled={!cell.inMonth || isPast}
                 onClick={() => selectDate(cell.key)}
                 className={[
-                  "flex h-16 flex-col items-center justify-start rounded-lg border p-1 text-sm transition",
+                  "flex h-16 flex-col items-center justify-start rounded-xl border p-1 text-sm transition",
                   !cell.inMonth ? "opacity-30" : "",
-                  isPast ? "cursor-not-allowed opacity-40" : "cursor-pointer hover:border-blue-400",
-                  isSelected ? "border-blue-600 ring-2 ring-blue-300" : "border-black/10 dark:border-white/10",
-                  cell.key === today ? "font-bold" : "",
+                  isPast ? "cursor-not-allowed opacity-40" : "cursor-pointer hover:border-brand-blue",
+                  isSelected
+                    ? "border-brand-pink ring-2 ring-brand-pink-light"
+                    : "border-black/10 dark:border-white/10",
+                  cell.key === today ? "font-bold text-brand-blue-dark" : "",
                 ].join(" ")}
               >
                 <span>{cell.day}</span>
@@ -208,7 +210,7 @@ export default function BookingCalendar() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-black/10 bg-white/60 p-4 shadow-sm dark:bg-white/5">
+      <div className="rounded-3xl border border-brand-blue-light bg-white/90 p-4 shadow-sm dark:border-white/10 dark:bg-white/5">
         {!selectedDate && (
           <p className="text-sm text-black/50 dark:text-white/50">
             เลือกวันที่ทางซ้ายเพื่อดูผู้ให้คำปรึกษาและเวลาว่าง
@@ -254,7 +256,7 @@ export default function BookingCalendar() {
                     {slot.available ? (
                       <button
                         onClick={() => setBookingSlot(slot)}
-                        className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
+                        className="rounded-full bg-brand-blue px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-blue-dark"
                       >
                         จองคิว
                       </button>
@@ -287,7 +289,7 @@ export default function BookingCalendar() {
 }
 
 const inputClass =
-  "mt-1 w-full rounded-lg border border-black/20 p-2 text-sm dark:border-white/20 dark:bg-transparent";
+  "mt-1 w-full rounded-xl border border-black/15 p-2 text-sm outline-none transition focus:border-brand-blue focus:ring-2 focus:ring-brand-blue-light dark:border-white/20 dark:bg-transparent";
 
 function BookingModal({
   slot,
@@ -364,10 +366,10 @@ function BookingModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl dark:bg-neutral-900">
+      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-white p-6 shadow-xl dark:bg-neutral-900">
         {success ? (
           <div className="text-center">
-            <p className="text-lg font-semibold text-green-600">จองคิวสำเร็จ!</p>
+            <p className="text-lg font-semibold text-brand-pink-dark">จองคิวสำเร็จ!</p>
             <p className="mt-2 text-sm text-black/60 dark:text-white/60">
               ระบบได้บันทึกการจองของคุณแล้ว เจ้าหน้าที่ศูนย์ให้คำปรึกษาจะติดต่อกลับเพื่อยืนยันวันเวลาที่นัดหมาย
               ผ่านเบอร์โทรศัพท์ 0-2244-5006
@@ -375,7 +377,7 @@ function BookingModal({
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-            <h3 className="text-lg font-semibold">จองคิวให้คำปรึกษา</h3>
+            <h3 className="text-lg font-semibold text-brand-blue-dark">จองคิวให้คำปรึกษา</h3>
             <p className="text-sm text-black/60 dark:text-white/60">
               {dateLabel} · {slot.startTime}-{slot.endTime} น. กับ {slot.counselorName}
             </p>
@@ -579,7 +581,7 @@ function BookingModal({
               <button
                 type="submit"
                 disabled={submitting}
-                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                className="rounded-full bg-brand-blue px-4 py-2 text-sm font-medium text-white hover:bg-brand-blue-dark disabled:opacity-50"
               >
                 {submitting ? "กำลังส่ง..." : "ยืนยันการจอง"}
               </button>

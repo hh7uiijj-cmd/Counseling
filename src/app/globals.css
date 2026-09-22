@@ -1,26 +1,41 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #fdf1f6;
+  --foreground: #1e2a3a;
+
+  --brand-blue: #29a9e0;
+  --brand-blue-dark: #1c7fb0;
+  --brand-blue-light: #eaf7fd;
+  --brand-pink: #ff6fa5;
+  --brand-pink-dark: #e2508a;
+  --brand-pink-light: #ffe3ee;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-brand-blue: var(--brand-blue);
+  --color-brand-blue-dark: var(--brand-blue-dark);
+  --color-brand-blue-light: var(--brand-blue-light);
+  --color-brand-pink: var(--brand-pink);
+  --color-brand-pink-dark: var(--brand-pink-dark);
+  --color-brand-pink-light: var(--brand-pink-light);
+  --font-sans: var(--font-prompt);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #191320;
+    --foreground: #f3ecf1;
+    --brand-blue-light: #17303d;
+    --brand-pink-light: #3a2230;
   }
 }
 
 body {
-  background: var(--background);
+  background: linear-gradient(160deg, var(--brand-pink-light) 0%, var(--background) 35%, var(--brand-blue-light) 100%);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-prompt), Arial, Helvetica, sans-serif;
+  min-height: 100vh;
 }

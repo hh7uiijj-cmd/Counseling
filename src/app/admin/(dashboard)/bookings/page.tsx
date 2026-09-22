@@ -151,7 +151,7 @@ function BookingsInner() {
                   <td className="p-2">
                     <button
                       onClick={() => setDetailBooking(b)}
-                      className="text-xs text-blue-700 hover:underline"
+                      className="text-xs text-brand-blue-dark hover:underline"
                     >
                       ดูรายละเอียด
                     </button>
@@ -242,7 +242,7 @@ function BookingDetailModal({
           {booking.status !== "COMPLETED" && (
             <button
               onClick={() => onUpdateStatus("COMPLETED")}
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              className="rounded-lg bg-brand-blue px-4 py-2 text-sm font-medium text-white hover:bg-brand-blue-dark"
             >
               เสร็จสิ้น
             </button>

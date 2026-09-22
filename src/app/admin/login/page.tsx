@@ -2,6 +2,7 @@
 
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Image from "next/image";
 
 function LoginForm() {
   const router = useRouter();
@@ -33,11 +34,14 @@ function LoginForm() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex w-full max-w-sm flex-col gap-3 rounded-2xl border border-black/10 bg-white/60 p-6 shadow-sm dark:bg-white/5"
+      className="flex w-full max-w-sm flex-col gap-3 rounded-3xl border border-brand-pink-light bg-white/90 p-6 shadow-sm dark:border-white/10 dark:bg-white/5"
     >
-      <h1 className="mb-2 text-center text-xl font-semibold">
-        เข้าสู่ระบบเจ้าหน้าที่
-      </h1>
+      <div className="mb-2 flex flex-col items-center gap-2">
+        <Image src="/brand/logo.png" alt="โลโก้" width={56} height={56} className="rounded-full" />
+        <h1 className="text-center text-xl font-semibold text-brand-blue-dark">
+          เข้าสู่ระบบเจ้าหน้าที่
+        </h1>
+      </div>
       <label className="text-sm font-medium">
         ชื่อผู้ใช้
         <input
@@ -45,7 +49,7 @@ function LoginForm() {
           autoFocus
           value={username}
           onChange={(e) => setUsername(e.target.value)}
-          className="mt-1 w-full rounded-lg border border-black/20 p-2 text-sm dark:border-white/20 dark:bg-transparent"
+          className="mt-1 w-full rounded-xl border border-black/15 p-2 text-sm outline-none transition focus:border-brand-blue focus:ring-2 focus:ring-brand-blue-light dark:border-white/20 dark:bg-transparent"
         />
       </label>
       <label className="text-sm font-medium">
@@ -55,14 +59,14 @@ function LoginForm() {
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="mt-1 w-full rounded-lg border border-black/20 p-2 text-sm dark:border-white/20 dark:bg-transparent"
+          className="mt-1 w-full rounded-xl border border-black/15 p-2 text-sm outline-none transition focus:border-brand-blue focus:ring-2 focus:ring-brand-blue-light dark:border-white/20 dark:bg-transparent"
         />
       </label>
       {error && <p className="text-sm text-red-600">{error}</p>}
       <button
         type="submit"
         disabled={submitting}
-        className="mt-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+        className="mt-2 rounded-full bg-brand-blue px-4 py-2 text-sm font-medium text-white hover:bg-brand-blue-dark disabled:opacity-50"
       >
         {submitting ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
       </button>

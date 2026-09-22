@@ -35,7 +35,7 @@ export default function AdminNav({ username }: { username: string }) {
                 className={[
                   "block rounded-lg px-3 py-2 text-sm",
                   pathname === link.href
-                    ? "bg-blue-600 text-white"
+                    ? "bg-brand-blue text-white"
                     : "hover:bg-black/5 dark:hover:bg-white/10",
                 ].join(" ")}
               >

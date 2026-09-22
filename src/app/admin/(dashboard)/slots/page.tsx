@@ -200,7 +200,7 @@ export default function SlotsPage() {
                   className={[
                     "h-8 w-10 rounded-lg border text-xs",
                     days.includes(d.value)
-                      ? "border-blue-600 bg-blue-600 text-white"
+                      ? "border-brand-blue bg-brand-blue text-white"
                       : "border-black/20 dark:border-white/20",
                   ].join(" ")}
                 >
@@ -242,13 +242,13 @@ export default function SlotsPage() {
             </label>
           </div>
 
-          {message && <p className="text-sm text-blue-700">{message}</p>}
+          {message && <p className="text-sm text-brand-blue-dark">{message}</p>}
 
           <div>
             <button
               type="submit"
               disabled={submitting || !counselorId}
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              className="rounded-lg bg-brand-blue px-4 py-2 text-sm font-medium text-white hover:bg-brand-blue-dark disabled:opacity-50"
             >
               {submitting ? "กำลังสร้าง..." : "สร้างคิวว่าง"}
             </button>
