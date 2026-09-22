@@ -103,9 +103,10 @@ export default function SettingsPage() {
           <li>คัดลอก <span className="font-mono">Channel access token</span> และ <span className="font-mono">Channel secret</span></li>
           <li>เชิญบัญชี Official Account เข้ากลุ่ม LINE ที่ต้องการรับแจ้งเตือน</li>
           <li>
-            หา Group ID โดยตั้งค่า Webhook URL เป็น{" "}
-            <span className="font-mono">https://your-domain/api/line/webhook</span> แล้วพิมพ์ข้อความใดๆ ในกลุ่ม
-            เพื่อดู groupId จาก log ของเซิร์ฟเวอร์ (event.source.groupId)
+            ตั้งค่า Webhook URL เป็น{" "}
+            <span className="font-mono">https://your-domain/api/line/webhook</span> แล้วเปิด &quot;Use
+            webhook&quot; จากนั้นพิมพ์คำว่า <span className="font-mono">&quot;รหัสกลุ่ม&quot;</span>{" "}
+            ในกลุ่ม LINE บอทจะตอบกลับ Group ID ให้ทันที
           </li>
           <li>
             ใส่ค่าทั้งหมดในไฟล์ <span className="font-mono">.env</span>:

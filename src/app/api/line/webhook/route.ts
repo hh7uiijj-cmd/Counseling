@@ -68,8 +68,31 @@ export async function POST(request: NextRequest) {
 
   await Promise.all(
     (body.events || []).map(async (event) => {
+      // Log the source id/type for every event so it can be found in deploy
+      // logs even without a text command (e.g. joins, non-text messages).
+      console.log("LINE event source:", JSON.stringify(event.source));
+
       if (event.type !== "message" || event.message?.type !== "text") return;
-      const dateKey = resolveDateKeyFromText(event.message.text as string);
+      const text = (event.message.text as string).trim();
+
+      if (["รหัสกลุ่ม", "groupid", "group id", "รหัสห้อง", "id"].includes(text.toLowerCase())) {
+        const sourceType = event.source?.type;
+        const sourceId =
+          event.source?.groupId || event.source?.roomId || event.source?.userId || "ไม่พบ";
+        try {
+          await replyMessage(event.replyToken, [
+            {
+              type: "text",
+              text: `ประเภท: ${sourceType}\nID: ${sourceId}\n\nนำ ID นี้ไปใส่ในตัวแปร LINE_GROUP_ID`,
+            },
+          ]);
+        } catch (err) {
+          console.error("Failed to reply with group id", err);
+        }
+        return;
+      }
+
+      const dateKey = resolveDateKeyFromText(text);
       if (!dateKey) return;
       try {
         await handleScheduleRequest(dateKey, event.replyToken);
