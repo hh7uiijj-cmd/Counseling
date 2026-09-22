@@ -82,6 +82,9 @@ export function buildBookingFlexMessage(params: {
     month: "short",
   }).format(new Date(`${params.dateKey}T00:00:00+07:00`));
 
+  const baseUrl = process.env.APP_BASE_URL;
+  const hasValidBaseUrl = Boolean(baseUrl && /^https?:\/\//.test(baseUrl));
+
   return {
     type: "flex",
     altText: `มีการจองใหม่: ${params.clientName} วันที่ ${thaiDateLabel(params.dateKey)} เวลา ${params.startTime}`,
@@ -160,22 +163,26 @@ export function buildBookingFlexMessage(params: {
           lineField("สถานะ", "รอการยืนยัน"),
         ],
       },
-      footer: {
-        type: "box",
-        layout: "vertical",
-        contents: [
-          {
-            type: "button",
-            style: "primary",
-            color: "#2563eb",
-            action: {
-              type: "uri",
-              label: "เปิดระบบจัดการการจอง",
-              uri: `${process.env.APP_BASE_URL || ""}/admin/bookings`,
+      ...(hasValidBaseUrl
+        ? {
+            footer: {
+              type: "box",
+              layout: "vertical",
+              contents: [
+                {
+                  type: "button",
+                  style: "primary",
+                  color: "#2563eb",
+                  action: {
+                    type: "uri",
+                    label: "เปิดระบบจัดการการจอง",
+                    uri: `${baseUrl}/admin/bookings`,
+                  },
+                },
+              ],
             },
-          },
-        ],
-      },
+          }
+        : {}),
     },
   };
 }
