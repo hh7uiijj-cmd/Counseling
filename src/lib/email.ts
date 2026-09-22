@@ -27,16 +27,22 @@ export async function sendBookingConfirmationEmail(params: {
     return { ok: false, skipped: true };
   }
 
-  const from = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
+  const fromAddress = (process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev").trim();
+  const from = `SDU Counseling Center <${fromAddress}>`;
+  const to = params.to.trim();
   const baseUrl = process.env.APP_BASE_URL;
   const hasValidBaseUrl = Boolean(baseUrl && /^https?:\/\//.test(baseUrl));
   const logoUrl = hasValidBaseUrl ? `${baseUrl}/brand/logo.png` : null;
   const dateTimeLabel = `${thaiDateLabel(params.dateKey)} เวลา ${params.startTime} - ${params.endTime} น.`;
 
+  console.log(
+    `Sending confirmation email: from="${from}" (${from.length} chars), to="${to}" (${to.length} chars)`
+  );
+
   try {
     const result = await client.emails.send({
-      from: `ศูนย์ให้คำปรึกษา มหาวิทยาลัยสวนดุสิต <${from}>`,
-      to: params.to,
+      from,
+      to,
       subject: "ยืนยันการจองคิวรับคำปรึกษา",
       html: `
         <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; color: #111827;">
@@ -65,12 +71,12 @@ export async function sendBookingConfirmationEmail(params: {
       `,
     });
     if (result.error) {
-      console.error("Failed to send confirmation email", result.error);
+      console.error("Failed to send confirmation email", JSON.stringify(result.error));
       return { ok: false, error: result.error };
     }
     return { ok: true };
   } catch (err) {
-    console.error("Failed to send confirmation email", err);
+    console.error("Failed to send confirmation email", err instanceof Error ? err.message : JSON.stringify(err));
     return { ok: false, error: err };
   }
 }
