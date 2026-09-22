@@ -101,7 +101,7 @@ function BookingsInner() {
         <select
           value={status}
           onChange={(e) => handleStatusChange(e.target.value)}
-          className="rounded-lg border border-black/20 p-2 text-sm dark:border-white/20 dark:bg-transparent"
+          className="field mt-0 w-auto"
         >
           <option value="">ทั้งหมด</option>
           <option value="PENDING">รอยืนยัน</option>
@@ -151,7 +151,7 @@ function BookingsInner() {
                   <td className="p-2">
                     <button
                       onClick={() => setDetailBooking(b)}
-                      className="text-xs text-brand-blue-dark hover:underline"
+                      className="btn-link"
                     >
                       ดูรายละเอียด
                     </button>
@@ -227,14 +227,14 @@ function BookingDetailModal({
         <div className="mt-4 flex flex-wrap justify-end gap-2">
           <button
             onClick={onClose}
-            className="rounded-lg px-4 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/10"
+            className="btn btn-ghost"
           >
             ปิด
           </button>
           {booking.status !== "CONFIRMED" && (
             <button
               onClick={() => onUpdateStatus("CONFIRMED")}
-              className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+              className="btn btn-success"
             >
               ยืนยัน
             </button>
@@ -242,7 +242,7 @@ function BookingDetailModal({
           {booking.status !== "COMPLETED" && (
             <button
               onClick={() => onUpdateStatus("COMPLETED")}
-              className="rounded-lg bg-brand-blue px-4 py-2 text-sm font-medium text-white hover:bg-brand-blue-dark"
+              className="btn btn-primary"
             >
               เสร็จสิ้น
             </button>
@@ -250,7 +250,7 @@ function BookingDetailModal({
           {booking.status !== "CANCELLED" && (
             <button
               onClick={() => onUpdateStatus("CANCELLED")}
-              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+              className="btn btn-danger"
             >
               ยกเลิก
             </button>

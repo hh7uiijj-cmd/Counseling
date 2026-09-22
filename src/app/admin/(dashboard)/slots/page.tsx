@@ -158,7 +158,7 @@ export default function SlotsPage() {
               <select
                 value={counselorId}
                 onChange={(e) => setCounselorId(e.target.value)}
-                className="mt-1 block rounded-lg border border-black/20 p-2 text-sm dark:border-white/20 dark:bg-transparent"
+                className="mt-1 block field"
               >
                 {counselors.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -174,7 +174,7 @@ export default function SlotsPage() {
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="mt-1 block rounded-lg border border-black/20 p-2 text-sm dark:border-white/20 dark:bg-transparent"
+                className="mt-1 block field"
               />
             </label>
             <label className="text-sm">
@@ -184,7 +184,7 @@ export default function SlotsPage() {
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="mt-1 block rounded-lg border border-black/20 p-2 text-sm dark:border-white/20 dark:bg-transparent"
+                className="mt-1 block field"
               />
             </label>
           </div>
@@ -217,7 +217,7 @@ export default function SlotsPage() {
                 type="time"
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
-                className="mt-1 block rounded-lg border border-black/20 p-2 text-sm dark:border-white/20 dark:bg-transparent"
+                className="mt-1 block field"
               />
             </label>
             <label className="text-sm">
@@ -226,7 +226,7 @@ export default function SlotsPage() {
                 type="time"
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
-                className="mt-1 block rounded-lg border border-black/20 p-2 text-sm dark:border-white/20 dark:bg-transparent"
+                className="mt-1 block field"
               />
             </label>
             <label className="text-sm">
@@ -237,7 +237,7 @@ export default function SlotsPage() {
                 step={5}
                 value={duration}
                 onChange={(e) => setDuration(Number(e.target.value))}
-                className="mt-1 block w-28 rounded-lg border border-black/20 p-2 text-sm dark:border-white/20 dark:bg-transparent"
+                className="mt-1 block w-28 field"
               />
             </label>
           </div>
@@ -248,7 +248,7 @@ export default function SlotsPage() {
             <button
               type="submit"
               disabled={submitting || !counselorId}
-              className="rounded-lg bg-brand-blue px-4 py-2 text-sm font-medium text-white hover:bg-brand-blue-dark disabled:opacity-50"
+              className="btn btn-primary"
             >
               {submitting ? "กำลังสร้าง..." : "สร้างคิวว่าง"}
             </button>
@@ -265,7 +265,7 @@ export default function SlotsPage() {
               type="date"
               value={closeDateInput}
               onChange={(e) => setCloseDateInput(e.target.value)}
-              className="mt-1 block rounded-lg border border-black/20 p-2 text-sm dark:border-white/20 dark:bg-transparent"
+              className="mt-1 block field"
             />
           </label>
           <label className="text-sm">
@@ -273,12 +273,12 @@ export default function SlotsPage() {
             <input
               value={closeReason}
               onChange={(e) => setCloseReason(e.target.value)}
-              className="mt-1 block rounded-lg border border-black/20 p-2 text-sm dark:border-white/20 dark:bg-transparent"
+              className="mt-1 block field"
             />
           </label>
           <button
             type="submit"
-            className="rounded-lg bg-gray-700 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
+            className="btn btn-neutral"
           >
             เพิ่มวันปิดทำการ
           </button>
@@ -292,7 +292,7 @@ export default function SlotsPage() {
               {formatDate(cd.date)} {cd.reason ? `(${cd.reason})` : ""}
               <button
                 onClick={() => handleRemoveClosedDate(cd.id)}
-                className="text-red-600 hover:underline"
+                className="btn-link text-red-600"
               >
                 ลบ
               </button>
@@ -339,7 +339,7 @@ export default function SlotsPage() {
                     <td className="p-2 text-right">
                       <button
                         onClick={() => handleDeleteSlot(s.id)}
-                        className="text-xs text-red-600 hover:underline"
+                        className="btn-link text-red-600"
                       >
                         ลบคิว
                       </button>

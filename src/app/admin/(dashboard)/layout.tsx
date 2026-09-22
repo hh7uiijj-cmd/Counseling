@@ -13,9 +13,9 @@ export default async function AdminDashboardLayout({
   }
 
   return (
-    <div className="flex min-h-screen flex-1">
+    <div className="flex min-h-screen flex-1 flex-col md:flex-row">
       <AdminNav username={session.username} />
-      <main className="flex-1 p-6">{children}</main>
+      <main className="flex-1 p-4 sm:p-6">{children}</main>
     </div>
   );
 }

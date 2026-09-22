@@ -1,8 +1,13 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 :root {
   --background: #fdf1f6;
   --foreground: #1e2a3a;
+  --surface: #ffffff;
+  --surface-muted: rgba(0, 0, 0, 0.04);
+  --border-color: rgba(0, 0, 0, 0.1);
 
   --brand-blue: #29a9e0;
   --brand-blue-dark: #1c7fb0;
@@ -12,9 +17,27 @@
   --brand-pink-light: #ffe3ee;
 }
 
+[data-theme="dark"] {
+  --background: #171220;
+  --foreground: #f3ecf1;
+  --surface: #211a2b;
+  --surface-muted: rgba(255, 255, 255, 0.06);
+  --border-color: rgba(255, 255, 255, 0.12);
+
+  --brand-blue: #4db8ea;
+  --brand-blue-dark: #8fd6f7;
+  --brand-blue-light: #1c3a49;
+  --brand-pink: #ff8fbb;
+  --brand-pink-dark: #ffb3d1;
+  --brand-pink-light: #3d2433;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-border-color: var(--border-color);
   --color-brand-blue: var(--brand-blue);
   --color-brand-blue-dark: var(--brand-blue-dark);
   --color-brand-blue-light: var(--brand-blue-light);
@@ -24,18 +47,61 @@
   --font-sans: var(--font-prompt);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #191320;
-    --foreground: #f3ecf1;
-    --brand-blue-light: #17303d;
-    --brand-pink-light: #3a2230;
-  }
-}
-
 body {
   background: linear-gradient(160deg, var(--brand-pink-light) 0%, var(--background) 35%, var(--brand-blue-light) 100%);
   color: var(--foreground);
   font-family: var(--font-prompt), Arial, Helvetica, sans-serif;
   min-height: 100vh;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@layer components {
+  /* Base button look — combine with a color variant, e.g. className="btn btn-primary" */
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium
+      transition-all duration-150 select-none
+      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
+      disabled:pointer-events-none disabled:opacity-50
+      active:scale-[0.97];
+    ring-offset-color: var(--surface);
+  }
+  .btn-sm {
+    @apply px-3 py-1.5 text-xs;
+  }
+  .btn-primary {
+    @apply bg-brand-blue text-white shadow-sm hover:bg-brand-blue-dark hover:shadow-md focus-visible:ring-brand-blue;
+  }
+  .btn-accent {
+    @apply bg-brand-pink text-white shadow-sm hover:bg-brand-pink-dark hover:shadow-md focus-visible:ring-brand-pink;
+  }
+  .btn-secondary {
+    @apply border border-brand-blue/30 bg-white text-brand-blue-dark hover:bg-brand-blue-light
+      focus-visible:ring-brand-blue dark:border-white/20 dark:bg-white/5 dark:text-white dark:hover:bg-white/10;
+  }
+  .btn-ghost {
+    @apply bg-transparent text-current hover:bg-black/5 focus-visible:ring-brand-blue dark:hover:bg-white/10;
+  }
+  .btn-danger {
+    @apply bg-red-600 text-white shadow-sm hover:bg-red-700 hover:shadow-md focus-visible:ring-red-500;
+  }
+  .btn-success {
+    @apply bg-green-600 text-white shadow-sm hover:bg-green-700 hover:shadow-md focus-visible:ring-green-500;
+  }
+  .btn-neutral {
+    @apply bg-gray-700 text-white shadow-sm hover:bg-gray-800 hover:shadow-md focus-visible:ring-gray-500;
+  }
+  .btn-link {
+    @apply text-xs font-medium text-brand-blue-dark underline-offset-2 hover:underline;
+  }
+  .card {
+    @apply rounded-3xl border border-black/10 shadow-sm dark:border-white/10;
+    background-color: var(--surface);
+  }
+  .field {
+    @apply mt-1 w-full rounded-xl border border-black/15 p-2 text-sm outline-none transition
+      focus:border-brand-blue focus:ring-2 focus:ring-brand-blue-light
+      dark:border-white/20;
+    background-color: var(--surface);
+    color: var(--foreground);
+  }
 }

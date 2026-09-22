@@ -60,7 +60,7 @@ export default function SettingsPage() {
               type="password"
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
-              className="mt-1 block w-full max-w-xs rounded-lg border border-black/20 p-2 text-sm dark:border-white/20 dark:bg-transparent"
+              className="mt-1 block w-full max-w-xs field"
             />
           </label>
           <label className="text-sm">
@@ -71,14 +71,14 @@ export default function SettingsPage() {
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              className="mt-1 block w-full max-w-xs rounded-lg border border-black/20 p-2 text-sm dark:border-white/20 dark:bg-transparent"
+              className="mt-1 block w-full max-w-xs field"
             />
           </label>
           <div>
             <button
               type="submit"
               disabled={changingPassword}
-              className="rounded-lg bg-brand-blue px-4 py-2 text-sm font-medium text-white hover:bg-brand-blue-dark disabled:opacity-50"
+              className="btn btn-primary"
             >
               {changingPassword ? "กำลังบันทึก..." : "เปลี่ยนรหัสผ่าน"}
             </button>
@@ -127,7 +127,7 @@ LINE_GROUP_ID="..."`}
         <button
           onClick={handleTest}
           disabled={testing}
-          className="rounded-lg bg-brand-blue px-4 py-2 text-sm font-medium text-white hover:bg-brand-blue-dark disabled:opacity-50"
+          className="btn btn-primary"
         >
           {testing ? "กำลังส่ง..." : "ส่งข้อความทดสอบ"}
         </button>

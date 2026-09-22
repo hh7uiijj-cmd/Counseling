@@ -86,7 +86,7 @@ export default function CounselorsPage() {
             required
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="mt-1 block rounded-lg border border-black/20 p-2 text-sm dark:border-white/20 dark:bg-transparent"
+            className="mt-1 block field"
           />
         </label>
         <label className="text-sm">
@@ -94,7 +94,7 @@ export default function CounselorsPage() {
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="mt-1 block rounded-lg border border-black/20 p-2 text-sm dark:border-white/20 dark:bg-transparent"
+            className="mt-1 block field"
           />
         </label>
         <label className="text-sm">
@@ -109,7 +109,7 @@ export default function CounselorsPage() {
         <button
           type="submit"
           disabled={submitting}
-          className="rounded-lg bg-brand-blue px-4 py-2 text-sm font-medium text-white hover:bg-brand-blue-dark disabled:opacity-50"
+          className="btn btn-primary"
         >
           เพิ่มผู้ให้คำปรึกษา
         </button>
@@ -159,7 +159,7 @@ export default function CounselorsPage() {
                   <td className="p-2 text-right">
                     <button
                       onClick={() => handleDelete(c)}
-                      className="text-xs text-red-600 hover:underline"
+                      className="btn-link text-red-600"
                     >
                       ลบ
                     </button>

@@ -113,29 +113,29 @@ export default function BookingCalendar() {
   }
 
   return (
-    <div className="grid gap-6 md:grid-cols-[1fr_360px]">
-      <div className="rounded-3xl border border-brand-pink-light bg-white/90 p-4 shadow-sm dark:border-white/10 dark:bg-white/5">
+    <div className="grid gap-4 sm:gap-6 md:grid-cols-[1fr_360px]">
+      <div className="card p-3 sm:p-4">
         <div className="mb-4 flex items-center justify-between">
           <button
             onClick={goPrevMonth}
-            className="rounded-lg px-3 py-1.5 text-sm hover:bg-black/5 dark:hover:bg-white/10"
+            className="btn btn-ghost h-9 w-9 p-0"
             aria-label="เดือนก่อนหน้า"
           >
             ◀
           </button>
-          <h2 className="text-lg font-semibold text-brand-blue-dark">
+          <h2 className="text-base font-semibold text-brand-blue-dark sm:text-lg">
             {THAI_MONTHS[month - 1]} {year + 543}
           </h2>
           <button
             onClick={goNextMonth}
-            className="rounded-lg px-3 py-1.5 text-sm hover:bg-black/5 dark:hover:bg-white/10"
+            className="btn btn-ghost h-9 w-9 p-0"
             aria-label="เดือนถัดไป"
           >
             ▶
           </button>
         </div>
 
-        <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-black/50 dark:text-white/50">
+        <div className="grid grid-cols-7 gap-0.5 text-center text-[11px] font-medium text-black/50 sm:gap-1 sm:text-xs dark:text-white/50">
           {THAI_WEEKDAYS_SHORT.map((w) => (
             <div key={w} className="py-1">
               {w}
@@ -143,7 +143,7 @@ export default function BookingCalendar() {
           ))}
         </div>
 
-        <div className="grid grid-cols-7 gap-1">
+        <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
           {grid.map((cell) => {
             const summary = days[cell.key];
             const isPast = cell.key < today;
@@ -157,9 +157,9 @@ export default function BookingCalendar() {
                 disabled={!cell.inMonth || isPast}
                 onClick={() => selectDate(cell.key)}
                 className={[
-                  "flex h-16 flex-col items-center justify-start rounded-xl border p-1 text-sm transition",
+                  "flex h-12 flex-col items-center justify-start rounded-lg border p-1 text-xs transition sm:h-16 sm:rounded-xl sm:text-sm",
                   !cell.inMonth ? "opacity-30" : "",
-                  isPast ? "cursor-not-allowed opacity-40" : "cursor-pointer hover:border-brand-blue",
+                  isPast ? "cursor-not-allowed opacity-40" : "cursor-pointer hover:border-brand-blue active:scale-95",
                   isSelected
                     ? "border-brand-pink ring-2 ring-brand-pink-light"
                     : "border-black/10 dark:border-white/10",
@@ -210,7 +210,7 @@ export default function BookingCalendar() {
         </div>
       </div>
 
-      <div className="rounded-3xl border border-brand-blue-light bg-white/90 p-4 shadow-sm dark:border-white/10 dark:bg-white/5">
+      <div className="card p-3 sm:p-4">
         {!selectedDate && (
           <p className="text-sm text-black/50 dark:text-white/50">
             เลือกวันที่ทางซ้ายเพื่อดูผู้ให้คำปรึกษาและเวลาว่าง
@@ -256,12 +256,12 @@ export default function BookingCalendar() {
                     {slot.available ? (
                       <button
                         onClick={() => setBookingSlot(slot)}
-                        className="rounded-full bg-brand-blue px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-blue-dark"
+                        className="btn btn-primary btn-sm"
                       >
                         จองคิว
                       </button>
                     ) : (
-                      <span className="rounded-lg bg-gray-200 px-3 py-1.5 text-xs text-gray-500 dark:bg-white/10">
+                      <span className="rounded-full bg-gray-200 px-3 py-1.5 text-xs text-gray-500 dark:bg-white/10">
                         ไม่ว่าง
                       </span>
                     )}
@@ -288,8 +288,7 @@ export default function BookingCalendar() {
   );
 }
 
-const inputClass =
-  "mt-1 w-full rounded-xl border border-black/15 p-2 text-sm outline-none transition focus:border-brand-blue focus:ring-2 focus:ring-brand-blue-light dark:border-white/20 dark:bg-transparent";
+const inputClass = "field";
 
 function BookingModal({
   slot,
@@ -365,8 +364,8 @@ function BookingModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-white p-6 shadow-xl dark:bg-neutral-900">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3 sm:p-4">
+      <div className="card max-h-[90vh] w-full max-w-lg overflow-y-auto p-4 shadow-xl sm:p-6">
         {success ? (
           <div className="text-center">
             <p className="text-lg font-semibold text-brand-pink-dark">จองคิวสำเร็จ!</p>
@@ -570,19 +569,11 @@ function BookingModal({
 
             {error && <p className="text-sm text-red-600">{error}</p>}
 
-            <div className="mt-2 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-lg px-4 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/10"
-              >
+            <div className="mt-2 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button type="button" onClick={onClose} className="btn btn-ghost">
                 ยกเลิก
               </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="rounded-full bg-brand-blue px-4 py-2 text-sm font-medium text-white hover:bg-brand-blue-dark disabled:opacity-50"
-              >
+              <button type="submit" disabled={submitting} className="btn btn-primary">
                 {submitting ? "กำลังส่ง..." : "ยืนยันการจอง"}
               </button>
             </div>
