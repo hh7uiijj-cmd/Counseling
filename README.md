@@ -74,6 +74,27 @@ npm run dev
 - `src/lib/line.ts` — ฟังก์ชันส่ง/รับข้อความ LINE Messaging API และสร้าง Flex Message
 - `prisma/schema.prisma` — โมเดลข้อมูล (Counselor, Slot, Booking, ClosedDate, Admin)
 
-## Deploy
+## Deploy บน Railway
 
-แอปนี้เป็น Next.js server ธรรมดา (ไม่ใช่ static export) ต้องรันบน Node.js server หรือแพลตฟอร์มที่รองรับ (Vercel, Railway, Docker เป็นต้น) และต้องมี PostgreSQL ที่เข้าถึงได้จากเซิร์ฟเวอร์ที่รันแอป
+แอปนี้เป็น Next.js server ธรรมดา (ไม่ใช่ static export) รันบน Node.js — ขั้นตอน deploy บน [Railway](https://railway.com/):
+
+1. สร้างโปรเจกต์ใหม่บน Railway แล้วเลือก **Deploy from GitHub repo** ชี้ไปที่ repo นี้
+2. เพิ่ม **PostgreSQL** เข้าโปรเจกต์เดียวกัน (New → Database → PostgreSQL) Railway จะสร้างตัวแปร `DATABASE_URL` ให้อัตโนมัติ
+3. ในบริการของเว็บแอป (service) ไปที่ **Variables** แล้วตั้งค่า:
+   - `DATABASE_URL` → อ้างอิงจากตัวแปรของ Postgres ที่สร้างไว้ (Railway จะเสนอให้เชื่อมอัตโนมัติ หรือใส่ `${{Postgres.DATABASE_URL}}`)
+   - `SESSION_SECRET` → สุ่มค่าใหม่ เช่นรันคำสั่ง `openssl rand -base64 32`
+   - `LINE_CHANNEL_ACCESS_TOKEN`, `LINE_CHANNEL_SECRET`, `LINE_GROUP_ID` → ตามขั้นตอนหัวข้อ "ตั้งค่าการแจ้งเตือน LINE กลุ่ม" ด้านบน
+   - `APP_BASE_URL` → โดเมนจริงที่ Railway ให้มา เช่น `https://your-app.up.railway.app` (หรือ custom domain ถ้าผูกไว้)
+4. Railway จะรัน `npm install` (ซึ่งจะรัน `prisma generate` ให้อัตโนมัติผ่าน `postinstall`) แล้ว `npm run build` และ `npm run start` — คำสั่ง `start` ถูกตั้งให้รัน `prisma migrate deploy` ก่อนเปิดเซิร์ฟเวอร์ทุกครั้ง ดังนั้น schema จะอัปเดตให้เองเมื่อ deploy ใหม่
+5. หลัง deploy สำเร็จครั้งแรก เปิด **Shell** ของ service บน Railway (หรือรันผ่าน `railway run`) แล้วสั่ง:
+   ```bash
+   npm run db:seed
+   ```
+   เพื่อสร้างบัญชีแอดมินแรก (ตั้ง `SEED_ADMIN_USERNAME`/`SEED_ADMIN_PASSWORD` เป็นตัวแปรใน Railway ก่อน seed ถ้าต้องการเปลี่ยนจากค่า default)
+6. เข้า `https://<โดเมนของคุณ>/admin/login` เพื่อ login ด้วยบัญชีที่ seed ไว้ แล้วไปที่ **ตั้งค่า > เปลี่ยนรหัสผ่านแอดมิน** เพื่อ**เปลี่ยนรหัสผ่านทันที**
+7. ตั้งค่า Webhook URL ของ LINE Official Account เป็น `https://<โดเมนของคุณ>/api/line/webhook` แล้วทดสอบส่งข้อความในหน้าแอดมิน > ตั้งค่า
+8. เข้าหน้าแอดมิน เพิ่มผู้ให้คำปรึกษาจริง + สร้างคิวว่างจริง แล้วลองจองทดสอบ 1 ครั้งเพื่อดูว่าข้อความ LINE เข้ากลุ่มจริง
+
+### Deploy ครั้งต่อไป
+
+ทุกครั้งที่ push โค้ดเข้า branch ที่ผูกไว้ Railway จะ build และ deploy ให้อัตโนมัติ (รวมถึงรัน migration ใหม่ให้ผ่าน `prisma migrate deploy` ในคำสั่ง start) — ถ้าแก้ `prisma/schema.prisma` ให้รัน `npx prisma migrate dev --name <ชื่อ>` ในเครื่อง dev ก่อน เพื่อสร้างไฟล์ migration ใหม่แล้ว commit เข้า repo ด้วย

@@ -6,6 +6,33 @@ export default function SettingsPage() {
   const [testing, setTesting] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
 
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [passwordResult, setPasswordResult] = useState<{ ok: boolean; message: string } | null>(
+    null
+  );
+
+  async function handleChangePassword(e: React.FormEvent) {
+    e.preventDefault();
+    setChangingPassword(true);
+    setPasswordResult(null);
+    const res = await fetch("/api/admin/change-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setChangingPassword(false);
+    if (res.ok) {
+      setPasswordResult({ ok: true, message: "เปลี่ยนรหัสผ่านสำเร็จ" });
+      setCurrentPassword("");
+      setNewPassword("");
+    } else {
+      setPasswordResult({ ok: false, message: data.message || "เปลี่ยนรหัสผ่านไม่สำเร็จ" });
+    }
+  }
+
   async function handleTest() {
     setTesting(true);
     setResult(null);
@@ -21,7 +48,50 @@ export default function SettingsPage() {
 
   return (
     <div className="flex max-w-2xl flex-col gap-6">
-      <h1 className="text-xl font-semibold">ตั้งค่าการแจ้งเตือน LINE</h1>
+      <h1 className="text-xl font-semibold">ตั้งค่า</h1>
+
+      <section className="rounded-xl border border-black/10 p-4 dark:border-white/10">
+        <h2 className="mb-2 font-medium">เปลี่ยนรหัสผ่านแอดมิน</h2>
+        <form onSubmit={handleChangePassword} className="flex flex-col gap-3">
+          <label className="text-sm">
+            รหัสผ่านปัจจุบัน
+            <input
+              required
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              className="mt-1 block w-full max-w-xs rounded-lg border border-black/20 p-2 text-sm dark:border-white/20 dark:bg-transparent"
+            />
+          </label>
+          <label className="text-sm">
+            รหัสผ่านใหม่ (อย่างน้อย 8 ตัวอักษร)
+            <input
+              required
+              minLength={8}
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="mt-1 block w-full max-w-xs rounded-lg border border-black/20 p-2 text-sm dark:border-white/20 dark:bg-transparent"
+            />
+          </label>
+          <div>
+            <button
+              type="submit"
+              disabled={changingPassword}
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {changingPassword ? "กำลังบันทึก..." : "เปลี่ยนรหัสผ่าน"}
+            </button>
+          </div>
+          {passwordResult && (
+            <p className={`text-sm ${passwordResult.ok ? "text-green-600" : "text-red-600"}`}>
+              {passwordResult.message}
+            </p>
+          )}
+        </form>
+      </section>
+
+      <h2 className="text-lg font-semibold">การแจ้งเตือน LINE</h2>
 
       <section className="rounded-xl border border-black/10 p-4 dark:border-white/10">
         <h2 className="mb-2 font-medium">ขั้นตอนการตั้งค่า (ทำครั้งเดียว)</h2>
