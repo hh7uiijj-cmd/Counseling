@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { bangkokDateTime, toDateKey } from "@/lib/dates";
+import { dateOnly, toDateKey } from "@/lib/dates";
 import { BookingStatus } from "@/generated/prisma/enums";
 
 export async function GET(request: NextRequest) {
@@ -16,8 +16,8 @@ export async function GET(request: NextRequest) {
   const lastDay = new Date(Date.UTC(year, monthNum, 0)).getUTCDate();
   const endDate = `${month}-${String(lastDay).padStart(2, "0")}`;
 
-  const rangeStart = bangkokDateTime(startDate, "00:00");
-  const rangeEnd = bangkokDateTime(endDate, "23:59");
+  const rangeStart = dateOnly(startDate);
+  const rangeEnd = dateOnly(endDate);
 
   const [slots, closedDates] = await Promise.all([
     prisma.slot.findMany({

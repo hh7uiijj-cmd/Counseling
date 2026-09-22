@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { bangkokDateTime, toDateKey } from "@/lib/dates";
+import { bangkokDateTime, dateOnly, toDateKey } from "@/lib/dates";
 
 const bulkCreateSchema = z
   .object({
@@ -32,8 +32,8 @@ export async function GET(request: NextRequest) {
   if (counselorId) where.counselorId = counselorId;
   if (from || to) {
     where.date = {
-      ...(from ? { gte: bangkokDateTime(from, "00:00") } : {}),
-      ...(to ? { lte: bangkokDateTime(to, "23:59") } : {}),
+      ...(from ? { gte: dateOnly(from) } : {}),
+      ...(to ? { lte: dateOnly(to) } : {}),
     };
   }
 
@@ -74,8 +74,8 @@ export async function POST(request: NextRequest) {
   const closedDates = await prisma.closedDate.findMany({
     where: {
       date: {
-        gte: bangkokDateTime(startDate, "00:00"),
-        lte: bangkokDateTime(endDate, "23:59"),
+        gte: dateOnly(startDate),
+        lte: dateOnly(endDate),
       },
     },
   });
@@ -94,8 +94,8 @@ export async function POST(request: NextRequest) {
     endsAt: Date;
   }[] = [];
 
-  const cursor = bangkokDateTime(startDate, "00:00");
-  const end = bangkokDateTime(endDate, "00:00");
+  const cursor = dateOnly(startDate);
+  const end = dateOnly(endDate);
 
   while (cursor.getTime() <= end.getTime()) {
     const dateKey = toDateKey(cursor);
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
 
         toCreate.push({
           counselorId,
-          date: bangkokDateTime(dateKey, "00:00"),
+          date: dateOnly(dateKey),
           startsAt: bangkokDateTime(dateKey, `${startHH}:${startMM}`),
           endsAt: bangkokDateTime(dateKey, `${endHH}:${endMM}`),
         });

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { bangkokDateTime, toDateKey, toTimeKey } from "@/lib/dates";
+import { dateOnly, toDateKey, toTimeKey } from "@/lib/dates";
 import {
   buildScheduleFlexMessage,
   replyMessage,
@@ -31,7 +31,7 @@ function resolveDateKeyFromText(text: string): string | null {
 async function handleScheduleRequest(dateKey: string, replyToken: string) {
   const slots = await prisma.slot.findMany({
     where: {
-      date: bangkokDateTime(dateKey, "00:00"),
+      date: dateOnly(dateKey),
       counselor: { active: true },
     },
     include: {

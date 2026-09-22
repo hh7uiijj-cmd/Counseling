@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { bangkokDateTime } from "@/lib/dates";
+import { dateOnly } from "@/lib/dates";
 
 const createSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -23,10 +23,10 @@ export async function POST(request: NextRequest) {
   }
 
   const closedDate = await prisma.closedDate.upsert({
-    where: { date: bangkokDateTime(parsed.data.date, "00:00") },
+    where: { date: dateOnly(parsed.data.date) },
     update: { reason: parsed.data.reason },
     create: {
-      date: bangkokDateTime(parsed.data.date, "00:00"),
+      date: dateOnly(parsed.data.date),
       reason: parsed.data.reason,
     },
   });

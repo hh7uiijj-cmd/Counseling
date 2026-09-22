@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { bangkokDateTime, toTimeKey } from "@/lib/dates";
+import { dateOnly, toTimeKey } from "@/lib/dates";
 import { BookingStatus } from "@/generated/prisma/enums";
 
 export async function GET(
@@ -13,12 +13,12 @@ export async function GET(
   }
 
   const closedDate = await prisma.closedDate.findUnique({
-    where: { date: bangkokDateTime(date, "00:00") },
+    where: { date: dateOnly(date) },
   });
 
   const slots = await prisma.slot.findMany({
     where: {
-      date: bangkokDateTime(date, "00:00"),
+      date: dateOnly(date),
       counselor: { active: true },
     },
     include: {
