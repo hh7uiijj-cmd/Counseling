@@ -9,6 +9,7 @@ type Counselor = {
   bio: string | null;
   color: string;
   active: boolean;
+  lineUserId: string | null;
   _count: { slots: number };
 };
 
@@ -22,10 +23,20 @@ export default function CounselorsPage() {
   const [color, setColor] = useState("#2563eb");
   const [submitting, setSubmitting] = useState(false);
 
+  const [lineIdDrafts, setLineIdDrafts] = useState<Record<string, string>>({});
+  const [savingLineId, setSavingLineId] = useState<string | null>(null);
+
   function load() {
     fetch("/api/admin/counselors")
       .then((res) => res.json())
-      .then((data) => setCounselors(data.counselors))
+      .then((data) => {
+        setCounselors(data.counselors);
+        setLineIdDrafts(
+          Object.fromEntries(
+            (data.counselors as Counselor[]).map((c) => [c.id, c.lineUserId || ""])
+          )
+        );
+      })
       .finally(() => setLoading(false));
   }
 
@@ -49,6 +60,18 @@ export default function CounselorsPage() {
     }
     setName("");
     setTitle("");
+    load();
+  }
+
+  async function handleSaveLineId(c: Counselor) {
+    setSavingLineId(c.id);
+    const value = (lineIdDrafts[c.id] || "").trim();
+    await fetch(`/api/admin/counselors/${c.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lineUserId: value || null }),
+    });
+    setSavingLineId(null);
     load();
   }
 
@@ -127,6 +150,7 @@ export default function CounselorsPage() {
                 <th className="p-2">ชื่อ</th>
                 <th className="p-2">ตำแหน่ง</th>
                 <th className="p-2">จำนวนคิวที่สร้าง</th>
+                <th className="p-2">LINE User ID (สำหรับแท็กชื่อ)</th>
                 <th className="p-2">สถานะ</th>
                 <th className="p-2"></th>
               </tr>
@@ -143,6 +167,25 @@ export default function CounselorsPage() {
                   <td className="p-2">{c.name}</td>
                   <td className="p-2">{c.title || "-"}</td>
                   <td className="p-2">{c._count.slots}</td>
+                  <td className="p-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        value={lineIdDrafts[c.id] ?? ""}
+                        onChange={(e) =>
+                          setLineIdDrafts((prev) => ({ ...prev, [c.id]: e.target.value }))
+                        }
+                        placeholder="U1234... (พิมพ์ 'ไอดีของฉัน' ในกลุ่ม)"
+                        className="field w-56 text-xs"
+                      />
+                      <button
+                        onClick={() => handleSaveLineId(c)}
+                        disabled={savingLineId === c.id}
+                        className="btn btn-secondary text-xs"
+                      >
+                        {savingLineId === c.id ? "..." : "บันทึก"}
+                      </button>
+                    </div>
+                  </td>
                   <td className="p-2">
                     <button
                       onClick={() => toggleActive(c)}

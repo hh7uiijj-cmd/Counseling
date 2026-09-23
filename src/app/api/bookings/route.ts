@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { toDateKey, toTimeKey } from "@/lib/dates";
-import { buildBookingFlexMessage, pushMessageToGroup } from "@/lib/line";
+import { buildBookingFlexMessage, buildCounselorMentionMessage, pushMessageToGroup } from "@/lib/line";
 import { TOPIC_LABELS, FACULTY_LABELS, FORMAT_LABELS } from "@/lib/formOptions";
 import { BookingStatus, Gender, YearLevel, Faculty, ConsultationTopic, ConsultationFormat } from "@/generated/prisma/enums";
 
@@ -128,7 +128,10 @@ export async function POST(request: NextRequest) {
       startTime: toTimeKey(slot.startsAt),
       endTime: toTimeKey(slot.endsAt),
     });
-    const pushResult = await pushMessageToGroup([message]);
+    const messages = slot.counselor.lineUserId
+      ? [buildCounselorMentionMessage(slot.counselor.name, slot.counselor.lineUserId), message]
+      : [message];
+    const pushResult = await pushMessageToGroup(messages);
     if (pushResult.ok) {
       await prisma.booking.update({
         where: { id: booking.id },

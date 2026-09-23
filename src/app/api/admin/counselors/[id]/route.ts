@@ -9,6 +9,7 @@ const updateSchema = z.object({
   photoUrl: z.string().nullable().optional(),
   color: z.string().optional(),
   active: z.boolean().optional(),
+  lineUserId: z.string().nullable().optional(),
 });
 
 export async function PATCH(

@@ -149,6 +149,21 @@ export async function POST(request: NextRequest) {
         return;
       }
 
+      if (["ไอดีของฉัน", "my id", "myid"].includes(text.toLowerCase())) {
+        const userId = event.source?.userId || "ไม่พบ (ต้องเป็นสมาชิกที่เพิ่มบอทเป็นเพื่อนแล้ว)";
+        try {
+          await replyMessage(event.replyToken, [
+            {
+              type: "text",
+              text: `LINE User ID ของคุณ:\n${userId}\n\nนำ ID นี้ไปให้แอดมินใส่ในระบบ เพื่อให้บอทแท็กชื่อคุณเวลามีคิวใหม่`,
+            },
+          ]);
+        } catch (err) {
+          console.error("Failed to reply with user id", err);
+        }
+        return;
+      }
+
       const dateKey = resolveDateKeyFromText(text);
       if (!dateKey) return;
       try {

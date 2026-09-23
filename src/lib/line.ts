@@ -58,6 +58,26 @@ export async function replyMessage(replyToken: string, messages: LineMessage[]) 
   return callLineApi("/message/reply", { replyToken, messages });
 }
 
+/** Build a text message that @-mentions a counselor's LINE account, e.g. for new booking alerts. */
+export function buildCounselorMentionMessage(counselorName: string, lineUserId: string) {
+  const mentionText = `@${counselorName}`;
+  const text = `${mentionText} มีการจองคิวใหม่เข้ามา กรุณาตรวจสอบและกดยืนยัน 🔔`;
+  return {
+    type: "text",
+    text,
+    mention: {
+      mentionees: [
+        {
+          index: 0,
+          length: mentionText.length,
+          type: "user",
+          userId: lineUserId,
+        },
+      ],
+    },
+  };
+}
+
 export function buildBookingFlexMessage(params: {
   bookingId: string;
   counselorName: string;

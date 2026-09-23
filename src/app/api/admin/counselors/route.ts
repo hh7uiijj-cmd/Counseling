@@ -8,6 +8,7 @@ const createSchema = z.object({
   bio: z.string().optional(),
   photoUrl: z.string().optional(),
   color: z.string().optional(),
+  lineUserId: z.string().optional(),
 });
 
 export async function GET() {

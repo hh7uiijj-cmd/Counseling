@@ -64,15 +64,16 @@ model Admin {
 }
 
 model Counselor {
-  id        String   @id @default(cuid())
-  name      String
-  title     String? // e.g. specialty / role, shown to clients
-  bio       String?
-  photoUrl  String?
-  color     String   @default("#2563eb") // used to color-code this counselor on the calendar
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(cuid())
+  name       String
+  title      String? // e.g. specialty / role, shown to clients
+  bio        String?
+  photoUrl   String?
+  color      String   @default("#2563eb") // used to color-code this counselor on the calendar
+  active     Boolean  @default(true)
+  lineUserId String? // LINE user ID to @-mention in group notifications for this counselor's bookings
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   slots Slot[]
 }
