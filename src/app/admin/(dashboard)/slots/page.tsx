@@ -172,6 +172,30 @@ export default function SlotsPage() {
     load();
   }
 
+  const [bulkCounselor, setBulkCounselor] = useState("");
+  const [bulkDate, setBulkDate] = useState("");
+  const [bulkMessage, setBulkMessage] = useState<string | null>(null);
+
+  async function bulkDelete(payload: Record<string, string>, confirmText: string) {
+    if (!confirm(confirmText)) return;
+    setBulkMessage(null);
+    const res = await fetch("/api/admin/slots", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setBulkMessage("ลบไม่สำเร็จ กรุณาลองใหม่");
+      return;
+    }
+    setBulkMessage(
+      `ลบแล้ว ${data.deleted} คิว` +
+        (data.skipped ? ` (เก็บไว้ ${data.skipped} คิวที่มีการจองอยู่)` : "")
+    );
+    load();
+  }
+
   async function handleAddClosedDate(e: React.FormEvent) {
     e.preventDefault();
     if (!closeDateInput) return;
@@ -451,6 +475,77 @@ export default function SlotsPage() {
 
       <section>
         <h2 className="mb-3 font-medium">คิวที่สร้างไว้ (ล่าสุด 100 รายการ)</h2>
+        <div className="mb-3 flex flex-col gap-3 rounded-xl border border-black/10 p-3 text-sm dark:border-white/10">
+          <p className="text-xs text-black/60 dark:text-white/65">
+            ลบหลายคิวพร้อมกัน คิวที่มีการจองอยู่ (ยังไม่ยกเลิก) จะถูกเก็บไว้ ไม่ถูกลบ
+          </p>
+          <div className="flex flex-wrap items-end gap-2">
+            <button
+              onClick={() =>
+                bulkDelete(
+                  { scope: "all" },
+                  "ลบคิวที่ยังไม่ถึงทั้งหมดใช่หรือไม่? (คิวที่มีการจองจะไม่ถูกลบ)"
+                )
+              }
+              className="btn btn-secondary text-red-600 dark:text-red-400"
+            >
+              ลบทั้งหมด
+            </button>
+          </div>
+          <div className="flex flex-wrap items-end gap-2">
+            <label>
+              รายคน
+              <select
+                value={bulkCounselor}
+                onChange={(e) => setBulkCounselor(e.target.value)}
+                className="mt-1 block field"
+              >
+                <option value="">-- เลือกผู้ให้คำปรึกษา --</option>
+                {counselors.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              disabled={!bulkCounselor}
+              onClick={() =>
+                bulkDelete(
+                  { scope: "counselor", counselorId: bulkCounselor },
+                  "ลบคิวที่ยังไม่ถึงทั้งหมดของคนนี้ใช่หรือไม่? เวรที่มีเพื่อนร่วมเวรจะถูกลบทั้งเวร (คิวที่มีการจองจะไม่ถูกลบ)"
+                )
+              }
+              className="btn btn-secondary text-red-600 dark:text-red-400"
+            >
+              ลบทั้งหมดของคนนี้
+            </button>
+          </div>
+          <div className="flex flex-wrap items-end gap-2">
+            <label>
+              ทั้งวัน
+              <input
+                type="date"
+                value={bulkDate}
+                onChange={(e) => setBulkDate(e.target.value)}
+                className="mt-1 block field"
+              />
+            </label>
+            <button
+              disabled={!bulkDate}
+              onClick={() =>
+                bulkDelete(
+                  { scope: "date", date: bulkDate },
+                  `ลบคิวทั้งหมดของวันที่ ${bulkDate} ใช่หรือไม่? (คิวที่มีการจองจะไม่ถูกลบ)`
+                )
+              }
+              className="btn btn-secondary text-red-600 dark:text-red-400"
+            >
+              ลบทั้งหมดของวันนั้น
+            </button>
+          </div>
+          {bulkMessage && <p className="text-sm text-brand-blue-dark">{bulkMessage}</p>}
+        </div>
         {loading ? (
           <p className="text-sm text-black/50 dark:text-white/65">กำลังโหลด...</p>
         ) : (

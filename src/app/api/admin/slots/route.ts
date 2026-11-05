@@ -266,3 +266,41 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({ created: result.count }, { status: 201 });
 }
+
+const bulkDeleteSchema = z.discriminatedUnion("scope", [
+  z.object({ scope: z.literal("all") }),
+  z.object({ scope: z.literal("counselor"), counselorId: z.string().min(1) }),
+  z.object({ scope: z.literal("date"), date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }),
+]);
+
+/**
+ * Bulk-delete slots: everything upcoming, everything one counselor sits in, or one whole day.
+ * Slots whose booking is not cancelled are kept (never lose a real booking or its history).
+ */
+export async function DELETE(request: NextRequest) {
+  const body = await request.json().catch(() => null);
+  const parsed = bulkDeleteSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "invalid_input" }, { status: 400 });
+  }
+  const input = parsed.data;
+
+  const today = dateOnly(toDateKey(new Date()));
+  const where: Record<string, unknown> =
+    input.scope === "date"
+      ? { date: dateOnly(input.date) }
+      : input.scope === "counselor"
+        ? { date: { gte: today }, OR: [{ counselorId: input.counselorId }, { partnerId: input.counselorId }] }
+        : { date: { gte: today } };
+
+  const total = await prisma.slot.count({ where });
+  const deleted = await prisma.slot.deleteMany({
+    where: {
+      ...where,
+      // Keep any slot whose booking is not cancelled.
+      AND: [{ OR: [{ booking: { is: null } }, { booking: { is: { status: "CANCELLED" } } }] }],
+    },
+  });
+
+  return NextResponse.json({ deleted: deleted.count, skipped: total - deleted.count });
+}
