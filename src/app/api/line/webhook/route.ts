@@ -23,7 +23,8 @@ async function handleBookingPostback(data: string, replyToken: string) {
   const bookingId = params.get("bookingId");
   if (!bookingId || (action !== "confirm" && action !== "cancel")) return;
 
-  const targetStatus = action === "confirm" ? BookingStatus.CONFIRMED : BookingStatus.CANCELLED;
+  const targetStatus =
+    action === "confirm" ? BookingStatus.CONFIRMED : BookingStatus.CANCELLED;
 
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
@@ -91,26 +92,40 @@ async function handleScheduleRequest(dateKey: string, replyToken: string) {
     orderBy: { startsAt: "asc" },
   });
 
-  const items = slots.filter(slotIsActive).map((slot) => ({
-    counselorName: slotCounselorLabel(slot),
-    counselorColor: slot.counselor.color,
-    startTime: toTimeKey(slot.startsAt),
-    endTime: toTimeKey(slot.endsAt),
-    status: (!slot.booking || slot.booking.status === BookingStatus.CANCELLED
-      ? "available"
-      : "booked") as "available" | "booked",
-    clientName: slot.booking?.clientName,
-  }));
+  const items = slots.flatMap((slot) =>
+    !slot.counselor || !slotIsActive(slot)
+      ? []
+      : [
+          {
+            counselorName: slotCounselorLabel(slot),
+            counselorColor: slot.counselor.color,
+            startTime: toTimeKey(slot.startsAt),
+            endTime: toTimeKey(slot.endsAt),
+            status: (!slot.booking ||
+            slot.booking.status === BookingStatus.CANCELLED
+              ? "available"
+              : "booked") as "available" | "booked",
+            clientName: slot.booking?.clientName,
+          },
+        ],
+  );
 
   const message = buildScheduleFlexMessage({ dateKey, items });
   await replyMessage(replyToken, [message]);
 }
 
 /** "ลงทะเบียน <ชื่อ>" in the group links the sender's LINE user ID to the counselor with that name. */
-async function handleRegister(name: string, userId: string | undefined, replyToken: string) {
+async function handleRegister(
+  name: string,
+  userId: string | undefined,
+  replyToken: string,
+) {
   if (!userId) {
     await replyMessage(replyToken, [
-      { type: "text", text: "ไม่พบ LINE User ID ของคุณ กรุณาเพิ่มบอทเป็นเพื่อนก่อนแล้วลองอีกครั้ง" },
+      {
+        type: "text",
+        text: "ไม่พบ LINE User ID ของคุณ กรุณาเพิ่มบอทเป็นเพื่อนก่อนแล้วลองอีกครั้ง",
+      },
     ]);
     return;
   }
@@ -143,7 +158,10 @@ async function handleRegister(name: string, userId: string | undefined, replyTok
     return;
   }
 
-  await prisma.counselor.update({ where: { id: counselor.id }, data: { lineUserId: userId } });
+  await prisma.counselor.update({
+    where: { id: counselor.id },
+    data: { lineUserId: userId },
+  });
   await replyMessage(replyToken, [
     {
       type: "text",
@@ -170,7 +188,10 @@ export async function POST(request: NextRequest) {
 
       if (event.type === "postback") {
         try {
-          await handleBookingPostback(event.postback.data as string, event.replyToken);
+          await handleBookingPostback(
+            event.postback.data as string,
+            event.replyToken,
+          );
         } catch (err) {
           console.error("Failed to handle LINE postback", err);
         }
@@ -180,10 +201,17 @@ export async function POST(request: NextRequest) {
       if (event.type !== "message" || event.message?.type !== "text") return;
       const text = (event.message.text as string).trim();
 
-      if (["รหัสกลุ่ม", "groupid", "group id", "รหัสห้อง", "id"].includes(text.toLowerCase())) {
+      if (
+        ["รหัสกลุ่ม", "groupid", "group id", "รหัสห้อง", "id"].includes(
+          text.toLowerCase(),
+        )
+      ) {
         const sourceType = event.source?.type;
         const sourceId =
-          event.source?.groupId || event.source?.roomId || event.source?.userId || "ไม่พบ";
+          event.source?.groupId ||
+          event.source?.roomId ||
+          event.source?.userId ||
+          "ไม่พบ";
         try {
           await replyMessage(event.replyToken, [
             {
@@ -198,7 +226,9 @@ export async function POST(request: NextRequest) {
       }
 
       if (["ไอดีของฉัน", "my id", "myid"].includes(text.toLowerCase())) {
-        const userId = event.source?.userId || "ไม่พบ (ต้องเป็นสมาชิกที่เพิ่มบอทเป็นเพื่อนแล้ว)";
+        const userId =
+          event.source?.userId ||
+          "ไม่พบ (ต้องเป็นสมาชิกที่เพิ่มบอทเป็นเพื่อนแล้ว)";
         try {
           await replyMessage(event.replyToken, [
             {
@@ -218,7 +248,7 @@ export async function POST(request: NextRequest) {
           await handleRegister(
             registerMatch[1].trim(),
             event.source?.userId as string | undefined,
-            event.replyToken
+            event.replyToken,
           );
         } catch (err) {
           console.error("Failed to handle LINE register", err);
@@ -233,7 +263,7 @@ export async function POST(request: NextRequest) {
       } catch (err) {
         console.error("Failed to reply to LINE schedule request", err);
       }
-    })
+    }),
   );
 
   return NextResponse.json({ ok: true });

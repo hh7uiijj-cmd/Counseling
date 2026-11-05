@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function SettingsPage() {
   const [testing, setTesting] = useState(false);
@@ -12,6 +12,40 @@ export default function SettingsPage() {
   const [passwordResult, setPasswordResult] = useState<{ ok: boolean; message: string } | null>(
     null
   );
+
+  const [maxShifts, setMaxShifts] = useState(2);
+  const [cutoffHours, setCutoffHours] = useState(24);
+  const [savingShift, setSavingShift] = useState(false);
+  const [shiftResult, setShiftResult] = useState<{ ok: boolean; message: string } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/admin/shift-settings")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.settings) {
+          setMaxShifts(d.settings.maxShiftsPerPair);
+          setCutoffHours(d.settings.changeCutoffHours);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  async function handleSaveShiftSettings(e: React.FormEvent) {
+    e.preventDefault();
+    setSavingShift(true);
+    setShiftResult(null);
+    const res = await fetch("/api/admin/shift-settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ maxShiftsPerPair: maxShifts, changeCutoffHours: cutoffHours }),
+    });
+    setSavingShift(false);
+    setShiftResult(
+      res.ok
+        ? { ok: true, message: "บันทึกการตั้งค่าแล้ว" }
+        : { ok: false, message: "บันทึกไม่สำเร็จ กรุณาตรวจสอบตัวเลข" }
+    );
+  }
 
   async function handleChangePassword(e: React.FormEvent) {
     e.preventDefault();
@@ -135,6 +169,45 @@ LINE_GROUP_ID="..."`}
         {result && (
           <p className={`mt-3 text-sm ${result.ok ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
             {result.message}
+          </p>
+        )}
+      </section>
+
+      <section className="rounded-xl border border-black/10 p-4 dark:border-white/10">
+        <h2 className="mb-1 font-medium">กติกาการลงเวร</h2>
+        <p className="mb-3 text-xs text-black/60 dark:text-white/65">
+          ใช้กับหน้าลงเวรของผู้ให้คำปรึกษา (ใส่ 0 = ไม่จำกัด)
+        </p>
+        <form onSubmit={handleSaveShiftSettings} className="flex flex-wrap items-end gap-3">
+          <label className="text-sm">
+            จำนวนเวรสูงสุดที่คู่ถือไว้พร้อมกัน
+            <input
+              type="number"
+              min={0}
+              value={maxShifts}
+              onChange={(e) => setMaxShifts(Number(e.target.value))}
+              className="mt-1 block w-32 field"
+            />
+          </label>
+          <label className="text-sm">
+            ยกเลิก/สลับเวรได้ก่อนถึงเวลา (ชั่วโมง)
+            <input
+              type="number"
+              min={0}
+              value={cutoffHours}
+              onChange={(e) => setCutoffHours(Number(e.target.value))}
+              className="mt-1 block w-32 field"
+            />
+          </label>
+          <button type="submit" disabled={savingShift} className="btn btn-primary">
+            {savingShift ? "กำลังบันทึก..." : "บันทึก"}
+          </button>
+        </form>
+        {shiftResult && (
+          <p
+            className={`mt-3 text-sm ${shiftResult.ok ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}
+          >
+            {shiftResult.message}
           </p>
         )}
       </section>

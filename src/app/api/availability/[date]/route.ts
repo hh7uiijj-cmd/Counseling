@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { dateOnly, toTimeKey } from "@/lib/dates";
-import { slotCounselorLabel, slotIsActive, slotMembers } from "@/lib/counselors";
+import {
+  slotCounselorLabel,
+  slotIsActive,
+  slotMembers,
+} from "@/lib/counselors";
 import { BookingStatus } from "@/generated/prisma/enums";
 
 const MEMBER_SELECT = {
@@ -15,7 +19,7 @@ const MEMBER_SELECT = {
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ date: string }> }
+  { params }: { params: Promise<{ date: string }> },
 ) {
   const { date } = await params;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
@@ -39,25 +43,32 @@ export async function GET(
     orderBy: [{ startsAt: "asc" }],
   });
 
-  const items = slots.filter(slotIsActive).map((slot) => ({
-    id: slot.id,
-    counselorId: slot.counselor.id,
-    counselorName: slotCounselorLabel(slot),
-    members: slotMembers(slot).map((m) => ({
-      id: m.id,
-      name: m.name,
-      title: m.title,
-      photoUrl: m.photoUrl,
-      color: m.color,
-    })),
-    counselorTitle: slot.counselor.title,
-    counselorColor: slot.counselor.color,
-    startTime: toTimeKey(slot.startsAt),
-    endTime: toTimeKey(slot.endsAt),
-    available:
-      closedDate == null &&
-      (!slot.booking || slot.booking.status === BookingStatus.CANCELLED),
-  }));
+  const items = slots.flatMap((slot) =>
+    !slot.counselor || !slotIsActive(slot)
+      ? []
+      : [
+          {
+            id: slot.id,
+            counselorId: slot.counselor.id,
+            counselorName: slotCounselorLabel(slot),
+            members: slotMembers(slot).map((m) => ({
+              id: m.id,
+              name: m.name,
+              title: m.title,
+              photoUrl: m.photoUrl,
+              color: m.color,
+            })),
+            counselorTitle: slot.counselor.title,
+            counselorColor: slot.counselor.color,
+            startTime: toTimeKey(slot.startsAt),
+            endTime: toTimeKey(slot.endsAt),
+            available:
+              closedDate == null &&
+              (!slot.booking ||
+                slot.booking.status === BookingStatus.CANCELLED),
+          },
+        ],
+  );
 
   return NextResponse.json({
     date,

@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
 
 const rotationSchema = z
   .object({
-    mode: z.literal("rotation"),
+    mode: z.enum(["rotation", "open"]),
     startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     daysOfWeek: z.array(z.number().int().min(0).max(6)).min(1),
@@ -75,13 +75,17 @@ function pad(n: number) {
   return String(n).padStart(2, "0");
 }
 
-/** Fill every hour of every chosen weekday with the next fixed pair, cycling through all pairs. */
+/**
+ * Fill every hour of every chosen weekday with shifts.
+ * - "rotation": assign the next fixed pair to each hour, cycling through all pairs.
+ * - "open": create unassigned shifts that pairs claim themselves from the LIFF page.
+ */
 async function createRotation(body: unknown) {
   const parsed = rotationSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: "invalid_input", issues: parsed.error.issues }, { status: 400 });
   }
-  const { startDate, endDate, daysOfWeek, windows, slotDurationMinutes: duration } = parsed.data;
+  const { mode, startDate, endDate, daysOfWeek, windows, slotDurationMinutes: duration } = parsed.data;
 
   const counselors = await prisma.counselor.findMany({
     where: { active: true, partnerId: { not: null } },
@@ -95,7 +99,7 @@ async function createRotation(body: unknown) {
   });
   pairs.sort((x, y) => x.a.createdAt.getTime() - y.a.createdAt.getTime());
 
-  if (pairs.length === 0) {
+  if (mode === "rotation" && pairs.length === 0) {
     return NextResponse.json(
       { error: "no_pairs", message: "ยังไม่มีคู่ผู้ให้คำปรึกษา กรุณาจับคู่ในหน้า 'ผู้ให้คำปรึกษา' ก่อน" },
       { status: 400 }
@@ -115,8 +119,8 @@ async function createRotation(body: unknown) {
   const takenStarts = new Set(existing.map((s) => s.startsAt.getTime()));
 
   const toCreate: {
-    counselorId: string;
-    partnerId: string;
+    counselorId: string | null;
+    partnerId: string | null;
     date: Date;
     startsAt: Date;
     endsAt: Date;
@@ -139,11 +143,11 @@ async function createRotation(body: unknown) {
           const e = m + duration;
           const endsAt = bangkokDateTime(dateKey, `${pad(Math.floor(e / 60))}:${pad(e % 60)}`);
           if (takenStarts.has(startsAt.getTime())) continue;
-          const pair = pairs[next % pairs.length];
+          const pair = mode === "rotation" ? pairs[next % pairs.length] : null;
           next += 1;
           toCreate.push({
-            counselorId: pair.a.id,
-            partnerId: pair.b.id,
+            counselorId: pair ? pair.a.id : null,
+            partnerId: pair ? pair.b.id : null,
             date: dateOnly(dateKey),
             startsAt,
             endsAt,
@@ -162,12 +166,16 @@ async function createRotation(body: unknown) {
   }
 
   const result = await prisma.slot.createMany({ data: toCreate });
-  return NextResponse.json({ created: result.count, pairs: pairs.length }, { status: 201 });
+  return NextResponse.json(
+    { created: result.count, pairs: mode === "rotation" ? pairs.length : 0 },
+    { status: 201 }
+  );
 }
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null);
-  if (body && typeof body === "object" && (body as { mode?: unknown }).mode === "rotation") {
+  const mode = body && typeof body === "object" ? (body as { mode?: unknown }).mode : undefined;
+  if (mode === "rotation" || mode === "open") {
     return createRotation(body);
   }
   const parsed = bulkCreateSchema.safeParse(body);

@@ -14,7 +14,7 @@ type Slot = {
   date: string;
   startsAt: string;
   endsAt: string;
-  counselor: { id: string; name: string; color: string };
+  counselor: { id: string; name: string; color: string } | null;
   partner: { id: string; name: string } | null;
   booking: { status: string; clientName: string } | null;
 };
@@ -71,6 +71,7 @@ export default function SlotsPage() {
   const [rotPmStart, setRotPmStart] = useState("13:00");
   const [rotPmEnd, setRotPmEnd] = useState("16:00");
   const [rotDuration, setRotDuration] = useState(60);
+  const [rotMode, setRotMode] = useState<"rotation" | "open">("open");
   const [rotSubmitting, setRotSubmitting] = useState(false);
   const [rotMessage, setRotMessage] = useState<string | null>(null);
 
@@ -139,7 +140,7 @@ export default function SlotsPage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        mode: "rotation",
+        mode: rotMode,
         startDate: rotStart,
         endDate: rotEnd,
         daysOfWeek: rotDays,
@@ -153,7 +154,11 @@ export default function SlotsPage() {
       setRotMessage(data.message || "เกิดข้อผิดพลาด กรุณาตรวจสอบข้อมูล");
       return;
     }
-    setRotMessage(`สร้างคิวสำเร็จ ${data.created} คิว (หมุนเวียน ${data.pairs} คู่)`);
+    setRotMessage(
+      rotMode === "rotation"
+        ? `สร้างคิวสำเร็จ ${data.created} คิว (หมุนเวียน ${data.pairs} คู่)`
+        : `สร้างเวรว่างสำเร็จ ${data.created} เวร ให้คู่ลงเวรเองได้ที่หน้าลงเวร`
+    );
     load();
   }
 
@@ -192,11 +197,21 @@ export default function SlotsPage() {
       <h1 className="text-xl font-semibold">จัดการคิวว่าง</h1>
 
       <section className="rounded-xl border border-black/10 p-4 dark:border-white/10">
-        <h2 className="mb-1 font-medium">สร้างคิวหมุนเวียนคู่อัตโนมัติ</h2>
+        <h2 className="mb-1 font-medium">สร้างเวรทั้งช่วง (วันศุกร์ เช้า-บ่าย)</h2>
         <p className="mb-3 text-xs text-black/60 dark:text-white/65">
-          ระบบจะเติมทุกชั่วโมงของวันที่เลือกด้วยคู่ผู้ให้คำปรึกษาตามลำดับ วนซ้ำจนครบทุกคู่
-          (ต้องจับคู่ในหน้า &quot;ผู้ให้คำปรึกษา&quot; ก่อน) ข้ามวันปิดทำการและเวลาที่มีคิวอยู่แล้ว
+          เลือกว่าจะให้ระบบจัดคู่ให้เอง หรือสร้างเวรว่างให้แต่ละคู่เลือกลงเอง ข้ามวันปิดทำการและเวลาที่มีคิวอยู่แล้ว
+          เวรว่างจะยังไม่เปิดให้ผู้ขอรับคำปรึกษาจองจนกว่าจะมีคู่ลงเวร
         </p>
+        <div className="mb-3 flex flex-wrap gap-4 text-sm">
+          <label className="flex items-center gap-2">
+            <input type="radio" checked={rotMode === "open"} onChange={() => setRotMode("open")} />
+            สร้างเวรว่าง ให้คู่เลือกลงเอง
+          </label>
+          <label className="flex items-center gap-2">
+            <input type="radio" checked={rotMode === "rotation"} onChange={() => setRotMode("rotation")} />
+            จัดคู่หมุนเวียนอัตโนมัติ (ต้องจับคู่ในหน้า &quot;ผู้ให้คำปรึกษา&quot; ก่อน)
+          </label>
+        </div>
         <form onSubmit={handleRotation} className="flex flex-col gap-3">
           <div className="flex flex-wrap gap-3">
             <label className="text-sm">
@@ -276,7 +291,7 @@ export default function SlotsPage() {
           {rotMessage && <p className="text-sm text-brand-blue-dark">{rotMessage}</p>}
           <div>
             <button type="submit" disabled={rotSubmitting || rotDays.length === 0} className="btn btn-primary">
-              {rotSubmitting ? "กำลังสร้าง..." : "สร้างคิวหมุนเวียน"}
+              {rotSubmitting ? "กำลังสร้าง..." : rotMode === "open" ? "สร้างเวรว่าง" : "สร้างคิวหมุนเวียน"}
             </button>
           </div>
         </form>
@@ -458,8 +473,14 @@ export default function SlotsPage() {
                       {formatDateTime(s.startsAt)}-{formatDateTime(s.endsAt)}
                     </td>
                     <td className="p-2">
-                      {s.counselor.name}
-                      {s.partner ? ` และ ${s.partner.name}` : ""}
+                      {s.counselor ? (
+                        <>
+                          {s.counselor.name}
+                          {s.partner ? ` และ ${s.partner.name}` : ""}
+                        </>
+                      ) : (
+                        <span className="text-black/50 dark:text-white/65">ว่าง (รอคู่ลงเวร)</span>
+                      )}
                     </td>
                     <td className="p-2">
                       {s.booking && s.booking.status !== "CANCELLED" ? (

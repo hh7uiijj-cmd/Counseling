@@ -15,7 +15,7 @@ type BookingWithSlot = {
     date: Date;
     startsAt: Date;
     endsAt: Date;
-    counselor: { id: string; name: string };
+    counselor: { id: string; name: string } | null;
     partner?: { id: string; name: string } | null;
   };
 };

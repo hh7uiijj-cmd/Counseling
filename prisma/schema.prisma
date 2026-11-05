@@ -79,8 +79,9 @@ model Counselor {
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
 
-  slots        Slot[] @relation("SlotMain")
-  partnerSlots Slot[] @relation("SlotPartner")
+  slots        Slot[]        @relation("SlotMain")
+  partnerSlots Slot[]        @relation("SlotPartner")
+  swapRequests SwapRequest[]
 }
 
 model ClosedDate {
@@ -94,8 +95,8 @@ model ClosedDate {
 
 model Slot {
   id          String     @id @default(cuid())
-  counselorId String
-  counselor   Counselor  @relation("SlotMain", fields: [counselorId], references: [id], onDelete: Cascade)
+  counselorId String? // null = open shift waiting for a pair to claim it
+  counselor   Counselor? @relation("SlotMain", fields: [counselorId], references: [id], onDelete: Cascade)
   // Second counselor sitting the same shift (paired shifts). Null for solo slots.
   partnerId   String?
   partner     Counselor? @relation("SlotPartner", fields: [partnerId], references: [id], onDelete: SetNull)
@@ -105,6 +106,9 @@ model Slot {
   createdAt   DateTime   @default(now())
 
   booking Booking?
+
+  swapsFrom SwapRequest[] @relation("SwapFrom")
+  swapsTo   SwapRequest[] @relation("SwapTo")
 
   @@index([date])
   @@index([counselorId, date])
@@ -132,4 +136,34 @@ model Booking {
   lineNotified       Boolean            @default(false)
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
+}
+
+enum SwapStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+}
+
+/// Simple key/value store for admin-tunable settings (e.g. shift limits).
+model Setting {
+  key   String @id
+  value String
+}
+
+/// A pair asks another pair to trade one of their shifts for one of ours.
+model SwapRequest {
+  id            String     @id @default(cuid())
+  fromSlotId    String
+  fromSlot      Slot       @relation("SwapFrom", fields: [fromSlotId], references: [id], onDelete: Cascade)
+  toSlotId      String
+  toSlot        Slot       @relation("SwapTo", fields: [toSlotId], references: [id], onDelete: Cascade)
+  requestedById String
+  requestedBy   Counselor  @relation(fields: [requestedById], references: [id], onDelete: Cascade)
+  status        SwapStatus @default(PENDING)
+  createdAt     DateTime   @default(now())
+  resolvedAt    DateTime?
+
+  @@index([fromSlotId])
+  @@index([toSlotId])
 }

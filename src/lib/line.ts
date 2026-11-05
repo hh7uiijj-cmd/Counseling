@@ -58,13 +58,14 @@ export async function replyMessage(replyToken: string, messages: LineMessage[]) 
   return callLineApi("/message/reply", { replyToken, messages });
 }
 
-/** Build a text message that @-mentions the counselors' LINE accounts, e.g. for new booking alerts. */
-export function buildCounselorMentionMessage(
-  counselors: { name: string; lineUserId: string }[]
+/** Build a text message that @-mentions LINE accounts, followed by `suffix`. */
+export function buildMentionTextMessage(
+  people: { name: string; lineUserId: string }[],
+  suffix: string
 ) {
   let text = "";
   const mentionees: { index: number; length: number; type: "user"; userId: string }[] = [];
-  for (const c of counselors) {
+  for (const c of people) {
     const mentionText = `@${c.name}`;
     mentionees.push({
       index: text.length,
@@ -74,8 +75,44 @@ export function buildCounselorMentionMessage(
     });
     text += `${mentionText} `;
   }
-  text += "มีการจองคิวใหม่เข้ามา กรุณาตรวจสอบและกดยืนยัน 🔔";
-  return { type: "text", text, mention: { mentionees } };
+  text += suffix;
+  return mentionees.length > 0
+    ? { type: "text", text, mention: { mentionees } }
+    : { type: "text", text: suffix };
+}
+
+/** Build a text message that @-mentions the counselors' LINE accounts for new booking alerts. */
+export function buildCounselorMentionMessage(
+  counselors: { name: string; lineUserId: string }[]
+) {
+  return buildMentionTextMessage(
+    counselors,
+    "มีการจองคิวใหม่เข้ามา กรุณาตรวจสอบและกดยืนยัน 🔔"
+  );
+}
+
+/**
+ * Verify a LIFF ID token with LINE and return the user's LINE user ID (`sub`).
+ * The LINE Login channel must be in the same provider as the Messaging API channel,
+ * otherwise this ID differs from the one used for @-mentions in the group.
+ */
+export async function verifyLineIdToken(idToken: string) {
+  const clientId = process.env.LINE_LOGIN_CHANNEL_ID;
+  if (!clientId) {
+    console.warn("LINE_LOGIN_CHANNEL_ID not set; cannot verify LIFF ID token");
+    return null;
+  }
+  const res = await fetch("https://api.line.me/oauth2/v2.1/verify", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ id_token: idToken, client_id: clientId }),
+  });
+  if (!res.ok) {
+    console.error(`LINE id_token verify failed ${res.status}: ${await res.text()}`);
+    return null;
+  }
+  const data = (await res.json()) as { sub?: unknown };
+  return typeof data.sub === "string" ? { userId: data.sub } : null;
 }
 
 export function buildBookingFlexMessage(params: {
