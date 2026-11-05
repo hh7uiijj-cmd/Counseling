@@ -10,7 +10,7 @@ import {
   seatsTaken,
   shiftText,
 } from "@/lib/shifts";
-import { SEATS_PER_SHIFT, slotCounselorLabel, slotMembers } from "@/lib/counselors";
+import { SEATS_PER_SHIFT, slotMembers } from "@/lib/counselors";
 import { SwapStatus } from "@/generated/prisma/enums";
 
 function fail(error: string, message: string, status: number) {
@@ -72,12 +72,7 @@ export async function POST(
     include: { counselor: true, partner: true },
   });
   const members = slotMembers(after);
-  await notifyGroup(
-    members,
-    members.length === SEATS_PER_SHIFT
-      ? `เวรครบ 2 คนแล้ว ✅ ${shiftText(after)} (${slotCounselorLabel(after)}) เปิดให้จองคิวได้แล้ว`
-      : `${me.name} ลงเวร ${shiftText(after)} รออีก 1 คน`
-  );
+// Signing up intentionally does not post to the LINE group (admin announces from "ประกาศลง LINE").
   return NextResponse.json({ ok: true, full: members.length === SEATS_PER_SHIFT });
 }
 
