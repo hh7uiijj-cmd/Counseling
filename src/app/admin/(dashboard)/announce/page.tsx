@@ -20,6 +20,8 @@ export default function AnnouncePage() {
   const [date, setDate] = useState(nextFriday());
   const [sending, setSending] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [cardNote, setCardNote] = useState("");
+  const [sendingCard, setSendingCard] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   useEffect(() => {
@@ -84,6 +86,25 @@ export default function AnnouncePage() {
     );
   }
 
+  async function sendSignupCard() {
+    if (!window.confirm("ส่งการ์ด \"เปิดลงเวร\" ลงกลุ่ม LINE ตอนนี้เลยใช่ไหม?")) return;
+    setSendingCard(true);
+    setResult(null);
+    const res = await fetch("/api/admin/line-broadcast/signup-card", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ note: cardNote }),
+    });
+    const d = await res.json().catch(() => ({}));
+    setSendingCard(false);
+    setResult(
+      res.ok
+        ? { ok: true, message: "ส่งการ์ดเปิดลงเวรลงกลุ่มแล้ว" }
+        : { ok: false, message: d.message || "ส่งไม่สำเร็จ" }
+    );
+    if (res.ok) setCardNote("");
+  }
+
   const taggable = counselors.filter((c) => c.canTag);
 
   return (
@@ -93,11 +114,40 @@ export default function AnnouncePage() {
         ระบบส่งข้อความลงกลุ่มเองเมื่อมีคนลงเวร/ยกเลิก/สลับเวร และเมื่อมีผู้ขอรับคำปรึกษาจองคิว
         ส่วนหน้านี้ใช้ส่งประกาศเพิ่มเองและทดสอบการส่ง
       </p>
+      {result && (
+        <p
+          className={`rounded-lg p-3 text-sm ${result.ok ? "bg-green-500/10 text-green-600 dark:text-green-400" : "bg-red-500/10 text-red-600 dark:text-red-400"}`}
+        >
+          {result.message}
+        </p>
+      )}
       {!configured && (
         <p className="rounded-lg bg-red-500/10 p-3 text-sm text-red-600 dark:text-red-400">
           ยังไม่ได้ตั้งค่า LINE_CHANNEL_ACCESS_TOKEN หรือ LINE_GROUP_ID ใน Vercel
         </p>
       )}
+
+      <section className="rounded-xl border border-black/10 p-4 dark:border-white/10">
+        <h2 className="mb-1 font-medium">เปิดลงเวร (การ์ดมีปุ่ม &quot;ลงเวร&quot;)</h2>
+        <p className="mb-3 text-sm text-black/60 dark:text-white/75">
+          ส่งการ์ดเข้ากลุ่ม ผู้ให้คำปรึกษากดปุ่ม &quot;ลงเวร&quot; เพื่อเปิดหน้าลงเวร (LIFF) ได้ทันที
+        </p>
+        <label className="block text-sm">
+          ข้อความเพิ่มเติมบนการ์ด (ไม่บังคับ เช่น กำหนดปิดลงเวร)
+          <input
+            value={cardNote}
+            onChange={(e) => setCardNote(e.target.value)}
+            maxLength={200}
+            placeholder="เช่น ลงเวรได้ถึงวันพุธนี้"
+            className="field mt-1 block w-full"
+          />
+        </label>
+        <div className="mt-3">
+          <button onClick={sendSignupCard} disabled={sendingCard || !configured} className="btn btn-primary">
+            {sendingCard ? "กำลังส่ง..." : "ส่งการ์ดเปิดลงเวรลงกลุ่ม"}
+          </button>
+        </div>
+      </section>
 
       <section className="rounded-xl border border-black/10 p-4 dark:border-white/10">
         <h2 className="mb-1 font-medium">ทดสอบข้อความลงเวร</h2>
@@ -110,16 +160,16 @@ export default function AnnouncePage() {
       </section>
 
       <section className="rounded-xl border border-black/10 p-4 dark:border-white/10">
-        <h2 className="mb-2 font-medium">ข้อความ</h2>
+        <h2 className="mb-2 font-medium">ส่งข้อความอื่น ๆ (พิมพ์เอง)</h2>
         <div className="mb-3 flex flex-wrap items-end gap-2">
-          <button type="button" onClick={fillSignup} className="btn">
+          <button type="button" onClick={fillSignup} className="btn btn-secondary">
             ใส่ข้อความ &quot;เปิดลงเวร&quot; + ลิงก์
           </button>
           <label className="text-sm">
             วันที่
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="ml-2 field" />
           </label>
-          <button type="button" onClick={fillSummary} className="btn">
+          <button type="button" onClick={fillSummary} className="btn btn-secondary">
             ใส่สรุปตารางเวรของวันนั้น
           </button>
         </div>
@@ -156,11 +206,6 @@ export default function AnnouncePage() {
             {sending ? "กำลังส่ง..." : "ส่งลงกลุ่ม LINE"}
           </button>
         </div>
-        {result && (
-          <p className={`mt-3 text-sm ${result.ok ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
-            {result.message}
-          </p>
-        )}
       </section>
     </div>
   );
