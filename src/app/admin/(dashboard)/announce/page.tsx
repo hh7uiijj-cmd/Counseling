@@ -19,6 +19,7 @@ export default function AnnouncePage() {
   const [mentionIds, setMentionIds] = useState<string[]>([]);
   const [date, setDate] = useState(nextFriday());
   const [sending, setSending] = useState(false);
+  const [testing, setTesting] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   useEffect(() => {
@@ -70,20 +71,43 @@ export default function AnnouncePage() {
     }
   }
 
+  async function sendShiftTest() {
+    setTesting(true);
+    setResult(null);
+    const res = await fetch("/api/admin/line-broadcast/shift-test", { method: "POST" });
+    const d = await res.json().catch(() => ({}));
+    setTesting(false);
+    setResult(
+      res.ok
+        ? { ok: true, message: "ส่งข้อความทดสอบลงเวรเข้ากลุ่มแล้ว (2 ข้อความ) ไปดูในกลุ่ม LINE ได้เลย" }
+        : { ok: false, message: d.message || "ส่งไม่สำเร็จ" }
+    );
+  }
+
   const taggable = counselors.filter((c) => c.canTag);
 
   return (
     <div className="flex max-w-2xl flex-col gap-6">
       <h1 className="text-xl font-semibold">ประกาศลง LINE</h1>
       <p className="text-sm text-black/60 dark:text-white/75">
-        ระบบจะไม่ส่งข้อความลงกลุ่มเองเมื่อมีคนลงเวร/ยกเลิก/สลับเวรอีกแล้ว แอดมินกดส่งเองจากหน้านี้เท่านั้น
-        (การแจ้งเตือนเมื่อมีผู้ขอรับคำปรึกษาจองคิวยังส่งตามปกติ)
+        ระบบส่งข้อความลงกลุ่มเองเมื่อมีคนลงเวร/ยกเลิก/สลับเวร และเมื่อมีผู้ขอรับคำปรึกษาจองคิว
+        ส่วนหน้านี้ใช้ส่งประกาศเพิ่มเองและทดสอบการส่ง
       </p>
       {!configured && (
         <p className="rounded-lg bg-red-500/10 p-3 text-sm text-red-600 dark:text-red-400">
           ยังไม่ได้ตั้งค่า LINE_CHANNEL_ACCESS_TOKEN หรือ LINE_GROUP_ID ใน Vercel
         </p>
       )}
+
+      <section className="rounded-xl border border-black/10 p-4 dark:border-white/10">
+        <h2 className="mb-1 font-medium">ทดสอบข้อความลงเวร</h2>
+        <p className="mb-3 text-sm text-black/60 dark:text-white/75">
+          ให้บอทส่งตัวอย่างข้อความตอนมีคนลงเวร (รออีก 1 คน และเวรครบ 2 คน) เข้ากลุ่ม LINE ไม่มีการบันทึกข้อมูลจริงในระบบ
+        </p>
+        <button onClick={sendShiftTest} disabled={testing || !configured} className="btn btn-primary">
+          {testing ? "กำลังส่ง..." : "ทดสอบลงเวร (ส่งเข้ากลุ่ม)"}
+        </button>
+      </section>
 
       <section className="rounded-xl border border-black/10 p-4 dark:border-white/10">
         <h2 className="mb-2 font-medium">ข้อความ</h2>
