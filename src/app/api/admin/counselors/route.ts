@@ -6,7 +6,6 @@ import { effectivePhotoUrl } from "@/lib/photos";
 const createSchema = z.object({
   name: z.string().min(1),
   fullName: z.string().optional(),
-  title: z.string().optional(),
   bio: z.string().optional(),
   photoUrl: z.string().optional(),
   color: z.string().optional(),

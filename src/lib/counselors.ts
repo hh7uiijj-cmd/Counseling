@@ -16,6 +16,9 @@ type SlotWithMembers = {
 
 export const SEATS_PER_SHIFT = 2;
 
+/** Every counselor in the project is a 3rd-year student; shown to clients instead of a per-person title. */
+export const COUNSELOR_ROLE_LABEL = "นักศึกษาชั้นปีที่ 3";
+
 /** Counselors currently sitting a slot (0, 1 or 2 of them). */
 export function slotMembers<T extends Member>(slot: {
   counselor: T | null;

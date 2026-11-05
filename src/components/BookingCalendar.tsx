@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { todayKey } from "@/lib/calendarGrid";
+import { COUNSELOR_ROLE_LABEL } from "@/lib/counselors";
 import {
   GENDER_OPTIONS,
   YEAR_LEVEL_OPTIONS,
@@ -22,7 +23,6 @@ type SlotMember = {
   id: string;
   name: string;
   fullName: string | null;
-  title: string | null;
   photoUrl: string | null;
   color: string;
 };
@@ -32,7 +32,6 @@ type SlotItem = {
   members: SlotMember[];
   counselorId: string;
   counselorName: string;
-  counselorTitle: string | null;
   counselorColor: string;
   startTime: string;
   endTime: string;
@@ -264,9 +263,9 @@ export default function BookingCalendar() {
                                       ชื่อเล่น: {m.name}
                                     </p>
                                   )}
-                                  {m.title && (
-                                    <p className="text-xs text-black/50 dark:text-white/65">{m.title}</p>
-                                  )}
+                                  <p className="text-xs text-black/50 dark:text-white/65">
+                                    {COUNSELOR_ROLE_LABEL}
+                                  </p>
                                 </div>
                               </div>
                             ))}
