@@ -9,7 +9,7 @@ const prompt = Prompt({
 });
 
 export const metadata: Metadata = {
-  title: "ศูนย์ให้คำปรึกษา มหาวิทยาลัยสวนดุสิต",
+  title: "โครงการเพื่อนวัยใส (Young Counselors) รุ่นที่ 5 | ศูนย์ให้คำปรึกษา มหาวิทยาลัยสวนดุสิต",
   description: "ระบบจองคิวเข้ารับคำปรึกษา ศูนย์ให้คำปรึกษา มหาวิทยาลัยสวนดุสิต",
   icons: {
     icon: "/brand/logo.png",

@@ -31,8 +31,11 @@ export default function Home() {
             className="h-16 w-16 rounded-full shadow-sm sm:h-[72px] sm:w-[72px]"
           />
           <div>
-            <h1 className="text-xl font-bold text-brand-blue-dark sm:text-2xl">
+            <p className="text-sm font-medium text-black/60 dark:text-white/70">
               ศูนย์ให้คำปรึกษา มหาวิทยาลัยสวนดุสิต
+            </p>
+            <h1 className="mt-1 text-xl font-bold text-brand-blue-dark sm:text-3xl">
+              โครงการเพื่อนวัยใส รู้ใจวัยรุ่นและวัยทำงาน (Young Counselors) รุ่นที่ 5
             </h1>
             <p className="mt-1 text-sm text-black/60 dark:text-white/70">
               เลือกวันศุกร์และช่วงเวลา ดูรูปและชื่อผู้ให้คำปรึกษา แล้วจองคิวได้ทันที
