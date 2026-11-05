@@ -14,8 +14,8 @@ import {
 type DaySummary = {
   date: string;
   totalSlots: number;
+  activeSlots: number;
   availableSlots: number;
-  counselorNames: string[];
   closed: boolean;
 };
 
@@ -72,25 +72,18 @@ function thaiDateLabelLocal(dateKeyStr: string) {
   }).format(date);
 }
 
-const UPCOMING_FRIDAYS = 8;
+function isFriday(dateKeyStr: string) {
+  const [y, m, d] = dateKeyStr.split("-").map(Number);
+  return new Date(y, m - 1, d).getDay() === 5;
+}
 
-const pad2 = (n: number) => String(n).padStart(2, "0");
-const keyOf = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-
-/** The next `count` Fridays starting from today (today counts if it is a Friday). */
-function upcomingFridays(count: number) {
-  const out: string[] = [];
-  const d = new Date();
-  d.setHours(12, 0, 0, 0);
-  while (out.length < count) {
-    if (d.getDay() === 5) out.push(keyOf(d));
-    d.setDate(d.getDate() + 1);
-  }
-  return out;
+function monthLabel(dateKeyStr: string) {
+  const [y, m, d] = dateKeyStr.split("-").map(Number);
+  return new Intl.DateTimeFormat("th-TH", { year: "numeric", month: "long" }).format(new Date(y, m - 1, d));
 }
 
 export default function BookingCalendar() {
-  const [fridays] = useState(() => upcomingFridays(UPCOMING_FRIDAYS));
+  const [fridays, setFridays] = useState<string[]>([]);
   const [days, setDays] = useState<Record<string, DaySummary>>({});
   const [loadingDays, setLoadingDays] = useState(true);
 
@@ -103,29 +96,25 @@ export default function BookingCalendar() {
   const [bookingSlot, setBookingSlot] = useState<SlotItem | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Summaries (open seats per Friday) for the months the listed Fridays fall in.
+  // Every Friday from today onward that has shifts (as far ahead as the admin created them).
   useEffect(() => {
     let cancelled = false;
-    const months = [...new Set(fridays.map((f) => f.slice(0, 7)))];
-    Promise.all(
-      months.map((m) =>
-        fetch(`/api/availability?month=${m}`)
-          .then((res) => res.json())
-          .then((data) => data.days as DaySummary[])
-          .catch(() => [] as DaySummary[])
-      )
-    )
-      .then((lists) => {
+    fetch("/api/availability/upcoming")
+      .then((res) => res.json())
+      .then((data) => {
         if (cancelled) return;
+        const list = (data.days as DaySummary[]) ?? [];
         const map: Record<string, DaySummary> = {};
-        for (const d of lists.flat()) map[d.date] = d;
+        for (const d of list) map[d.date] = d;
         setDays(map);
+        setFridays(list.filter((d) => isFriday(d.date)).map((d) => d.date));
       })
+      .catch(() => {})
       .finally(() => !cancelled && setLoadingDays(false));
     return () => {
       cancelled = true;
     };
-  }, [fridays, refreshKey]);
+  }, [refreshKey]);
 
   function selectDate(dateKeyStr: string) {
     setSelectedDate(dateKeyStr);
@@ -151,14 +140,27 @@ export default function BookingCalendar() {
           โครงการเปิดให้คำปรึกษาทุกวันศุกร์ เวลา 09:00-12:00 และ 13:00-16:00 น.
         </p>
 
+        {loadingDays && fridays.length === 0 && (
+          <p className="text-sm text-black/50 dark:text-white/65">กำลังโหลด...</p>
+        )}
+        {!loadingDays && fridays.length === 0 && (
+          <p className="text-sm text-black/50 dark:text-white/65">ยังไม่มีวันศุกร์ที่เปิดให้จอง</p>
+        )}
+
         <ul className="flex flex-col gap-2">
-          {fridays.map((key) => {
+          {fridays.map((key, i) => {
             const summary = days[key];
             const isSelected = key === selectedDate;
             const closed = summary?.closed;
             const open = summary && !closed ? summary.availableSlots : 0;
+            const newMonth = i === 0 || monthLabel(fridays[i - 1]) !== monthLabel(key);
             return (
               <li key={key}>
+                {newMonth && (
+                  <h3 className={`mb-1 text-sm font-semibold text-brand-blue-dark ${i === 0 ? "" : "mt-3"}`}>
+                    {monthLabel(key)}
+                  </h3>
+                )}
                 <button
                   onClick={() => selectDate(key)}
                   className={[
@@ -176,10 +178,8 @@ export default function BookingCalendar() {
                     <span className="shrink-0 rounded-full bg-gray-200 px-2.5 py-1 text-xs text-gray-600 dark:bg-white/10 dark:text-white/70">
                       ปิดทำการ
                     </span>
-                  ) : !summary ? (
-                    <span className="shrink-0 text-xs text-black/40 dark:text-white/60">
-                      {loadingDays ? "กำลังโหลด..." : "ยังไม่เปิดให้จอง"}
-                    </span>
+                  ) : !summary || summary.activeSlots === 0 ? (
+                    <span className="shrink-0 text-xs text-black/40 dark:text-white/60">ยังไม่เปิดให้จอง</span>
                   ) : open > 0 ? (
                     <span className="shrink-0 rounded-full bg-green-100 px-2.5 py-1 text-xs text-green-800">
                       ว่าง {open} คิว
