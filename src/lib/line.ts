@@ -115,6 +115,56 @@ export async function verifyLineIdToken(idToken: string) {
   return typeof data.sub === "string" ? { userId: data.sub } : null;
 }
 
+/** Card announcing that shift sign-up is open, with a button that opens the LIFF sign-up page. */
+export function buildSignupFlexMessage(params: { signupUrl: string; note?: string }) {
+  return {
+    type: "flex",
+    altText: "เปิดลงเวรโครงการเพื่อนวัยใส กดเพื่อลงเวร",
+    contents: {
+      type: "bubble",
+      size: "mega",
+      header: {
+        type: "box",
+        layout: "vertical",
+        backgroundColor: "#2563eb",
+        paddingAll: "16px",
+        contents: [
+          { type: "text", text: "📢 เปิดลงเวรแล้ว", color: "#ffffff", weight: "bold", size: "lg" },
+          { type: "text", text: "โครงการเพื่อนวัยใส", color: "#dbeafe", size: "sm" },
+        ],
+      },
+      body: {
+        type: "box",
+        layout: "vertical",
+        spacing: "sm",
+        contents: [
+          {
+            type: "text",
+            text: "เลือกวันศุกร์และช่วงเวลา แล้วกดที่นั่งว่างเพื่อลงชื่อ (1 ช่วงเวลามี 2 ที่นั่ง)",
+            wrap: true,
+            size: "sm",
+          },
+          ...(params.note
+            ? [{ type: "text", text: params.note, wrap: true, size: "sm", color: "#dc2626", margin: "md" }]
+            : []),
+        ],
+      },
+      footer: {
+        type: "box",
+        layout: "vertical",
+        contents: [
+          {
+            type: "button",
+            style: "primary",
+            color: "#2563eb",
+            action: { type: "uri", label: "ลงเวร", uri: params.signupUrl },
+          },
+        ],
+      },
+    },
+  };
+}
+
 export function buildBookingFlexMessage(params: {
   bookingId: string;
   counselorName: string;
