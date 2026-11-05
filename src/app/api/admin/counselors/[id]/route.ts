@@ -10,6 +10,7 @@ const updateSchema = z.object({
   color: z.string().optional(),
   active: z.boolean().optional(),
   lineUserId: z.string().nullable().optional(),
+  partnerId: z.string().min(1).nullable().optional(),
 });
 
 export async function PATCH(
@@ -23,10 +24,43 @@ export async function PATCH(
     return NextResponse.json({ error: "invalid_input", issues: parsed.error.issues }, { status: 400 });
   }
 
-  const counselor = await prisma.counselor.update({
-    where: { id },
-    data: parsed.data,
+  const { partnerId, ...rest } = parsed.data;
+
+  if (partnerId === id) {
+    return NextResponse.json(
+      { error: "invalid_partner", message: "ไม่สามารถจับคู่กับตัวเองได้" },
+      { status: 400 }
+    );
+  }
+
+  const counselor = await prisma.$transaction(async (tx) => {
+    if (partnerId !== undefined) {
+      const current = await tx.counselor.findUnique({ where: { id } });
+      if (!current) return null;
+      const target = partnerId
+        ? await tx.counselor.findUnique({ where: { id: partnerId } })
+        : null;
+      if (partnerId && !target) return null;
+
+      // Pairs are symmetric and one-to-one: release both sides of any old pair first.
+      const toRelease = [id, current.partnerId, partnerId, target?.partnerId].filter(
+        (v): v is string => Boolean(v)
+      );
+      await tx.counselor.updateMany({
+        where: { id: { in: toRelease } },
+        data: { partnerId: null },
+      });
+      if (partnerId) {
+        await tx.counselor.update({ where: { id }, data: { partnerId } });
+        await tx.counselor.update({ where: { id: partnerId }, data: { partnerId: id } });
+      }
+    }
+    return tx.counselor.update({ where: { id }, data: rest });
   });
+
+  if (!counselor) {
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
+  }
   return NextResponse.json({ counselor });
 }
 
@@ -37,7 +71,7 @@ export async function DELETE(
   const { id } = await params;
 
   const bookingCount = await prisma.booking.count({
-    where: { slot: { counselorId: id }, status: { in: ["PENDING", "CONFIRMED"] } },
+    where: { slot: { OR: [{ counselorId: id }, { partnerId: id }] }, status: { in: ["PENDING", "CONFIRMED"] } },
   });
 
   if (bookingCount > 0) {

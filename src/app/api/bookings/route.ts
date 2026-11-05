@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { toDateKey, toTimeKey } from "@/lib/dates";
 import { buildBookingFlexMessage, buildCounselorMentionMessage, pushMessageToGroup } from "@/lib/line";
+import { slotCounselorLabel, slotIsActive, slotMembers } from "@/lib/counselors";
 import { TOPIC_LABELS, FACULTY_LABELS, FORMAT_LABELS } from "@/lib/formOptions";
 import { BookingStatus, Gender, YearLevel, Faculty, ConsultationTopic, ConsultationFormat } from "@/generated/prisma/enums";
 
@@ -58,10 +59,10 @@ export async function POST(request: NextRequest) {
   const result = await prisma.$transaction(async (tx) => {
     const slot = await tx.slot.findUnique({
       where: { id: slotId },
-      include: { booking: true, counselor: true },
+      include: { booking: true, counselor: true, partner: true },
     });
 
-    if (!slot || !slot.counselor.active) {
+    if (!slot || !slotIsActive(slot)) {
       return { error: "slot_not_found" as const };
     }
 
@@ -115,7 +116,7 @@ export async function POST(request: NextRequest) {
         : TOPIC_LABELS[booking.topicCategory];
     const message = buildBookingFlexMessage({
       bookingId: booking.id,
-      counselorName: slot.counselor.name,
+      counselorName: slotCounselorLabel(slot),
       clientName: booking.clientName,
       studentId: booking.studentId,
       faculty: FACULTY_LABELS[booking.faculty] || booking.faculty,
@@ -128,8 +129,11 @@ export async function POST(request: NextRequest) {
       startTime: toTimeKey(slot.startsAt),
       endTime: toTimeKey(slot.endsAt),
     });
-    const messages = slot.counselor.lineUserId
-      ? [buildCounselorMentionMessage(slot.counselor.name, slot.counselor.lineUserId), message]
+    const mentionable = slotMembers(slot).flatMap((m) =>
+      m.lineUserId ? [{ name: m.name, lineUserId: m.lineUserId }] : []
+    );
+    const messages = mentionable.length
+      ? [buildCounselorMentionMessage(mentionable), message]
       : [message];
     const pushResult = await pushMessageToGroup(messages);
     if (pushResult.ok) {

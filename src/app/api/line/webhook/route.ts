@@ -6,6 +6,7 @@ import {
   replyMessage,
   verifyLineSignature,
 } from "@/lib/line";
+import { slotCounselorLabel, slotIsActive } from "@/lib/counselors";
 import { updateBookingStatus } from "@/lib/bookingActions";
 import { BookingStatus } from "@/generated/prisma/enums";
 
@@ -26,7 +27,7 @@ async function handleBookingPostback(data: string, replyToken: string) {
 
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
-    include: { slot: { include: { counselor: true } } },
+    include: { slot: { include: { counselor: true, partner: true } } },
   });
 
   if (!booking) {
@@ -83,14 +84,15 @@ async function handleScheduleRequest(dateKey: string, replyToken: string) {
       counselor: { active: true },
     },
     include: {
-      counselor: { select: { name: true, color: true } },
+      counselor: { select: { name: true, color: true, active: true } },
+      partner: { select: { name: true, active: true } },
       booking: { select: { status: true, clientName: true } },
     },
     orderBy: { startsAt: "asc" },
   });
 
-  const items = slots.map((slot) => ({
-    counselorName: slot.counselor.name,
+  const items = slots.filter(slotIsActive).map((slot) => ({
+    counselorName: slotCounselorLabel(slot),
     counselorColor: slot.counselor.color,
     startTime: toTimeKey(slot.startsAt),
     endTime: toTimeKey(slot.endsAt),
@@ -102,6 +104,52 @@ async function handleScheduleRequest(dateKey: string, replyToken: string) {
 
   const message = buildScheduleFlexMessage({ dateKey, items });
   await replyMessage(replyToken, [message]);
+}
+
+/** "ลงทะเบียน <ชื่อ>" in the group links the sender's LINE user ID to the counselor with that name. */
+async function handleRegister(name: string, userId: string | undefined, replyToken: string) {
+  if (!userId) {
+    await replyMessage(replyToken, [
+      { type: "text", text: "ไม่พบ LINE User ID ของคุณ กรุณาเพิ่มบอทเป็นเพื่อนก่อนแล้วลองอีกครั้ง" },
+    ]);
+    return;
+  }
+
+  const matches = await prisma.counselor.findMany({
+    where: { name: { equals: name, mode: "insensitive" } },
+  });
+
+  if (matches.length !== 1) {
+    await replyMessage(replyToken, [
+      {
+        type: "text",
+        text:
+          matches.length === 0
+            ? `ไม่พบผู้ให้คำปรึกษาชื่อ "${name}" กรุณาพิมพ์ชื่อให้ตรงกับที่แอดมินบันทึกไว้`
+            : `พบชื่อ "${name}" ซ้ำกันหลายคน กรุณาแจ้งแอดมินให้ผูกบัญชีให้`,
+      },
+    ]);
+    return;
+  }
+
+  const counselor = matches[0];
+  if (counselor.lineUserId && counselor.lineUserId !== userId) {
+    await replyMessage(replyToken, [
+      {
+        type: "text",
+        text: `"${counselor.name}" ผูกบัญชี LINE ไว้แล้ว หากต้องการเปลี่ยนกรุณาแจ้งแอดมิน`,
+      },
+    ]);
+    return;
+  }
+
+  await prisma.counselor.update({ where: { id: counselor.id }, data: { lineUserId: userId } });
+  await replyMessage(replyToken, [
+    {
+      type: "text",
+      text: `ผูกบัญชี LINE ของคุณกับ "${counselor.name}" เรียบร้อยแล้ว ✅ ต่อไปบอทจะแท็กชื่อคุณเมื่อมีคิวใหม่`,
+    },
+  ]);
 }
 
 export async function POST(request: NextRequest) {
@@ -160,6 +208,20 @@ export async function POST(request: NextRequest) {
           ]);
         } catch (err) {
           console.error("Failed to reply with user id", err);
+        }
+        return;
+      }
+
+      const registerMatch = text.match(/^ลงทะเบียน\s+(.+)$/);
+      if (registerMatch) {
+        try {
+          await handleRegister(
+            registerMatch[1].trim(),
+            event.source?.userId as string | undefined,
+            event.replyToken
+          );
+        } catch (err) {
+          console.error("Failed to handle LINE register", err);
         }
         return;
       }

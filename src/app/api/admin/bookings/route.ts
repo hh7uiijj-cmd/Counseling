@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
   const bookings = await prisma.booking.findMany({
     where: status ? { status } : undefined,
     include: {
-      slot: { include: { counselor: true } },
+      slot: { include: { counselor: true, partner: true } },
     },
     orderBy: { createdAt: "desc" },
   });

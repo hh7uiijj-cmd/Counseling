@@ -1,5 +1,6 @@
 "use client";
 
+import { slotCounselorLabel } from "@/lib/counselors";
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import StatusBadge from "@/components/admin/StatusBadge";
@@ -34,6 +35,7 @@ type Booking = {
     startsAt: string;
     endsAt: string;
     counselor: { name: string; color: string };
+    partner?: { name: string } | null;
   };
 };
 
@@ -174,7 +176,7 @@ function BookingsInner() {
                     <br />
                     {formatDateTime(b.slot.startsAt)}-{formatDateTime(b.slot.endsAt)}
                   </td>
-                  <td className="p-2">{b.slot.counselor.name}</td>
+                  <td className="p-2">{slotCounselorLabel(b.slot)}</td>
                   <td className="p-2">{b.clientName}</td>
                   <td className="p-2">
                     {FACULTY_LABELS[b.faculty] || b.faculty}
@@ -265,7 +267,7 @@ function BookingDetailModal({
 
         <div className="mb-3 rounded-lg bg-black/5 p-2 text-sm dark:bg-white/10">
           {formatDate(booking.slot.date)} · {formatDateTime(booking.slot.startsAt)}-
-          {formatDateTime(booking.slot.endsAt)} น. กับ {booking.slot.counselor.name}
+          {formatDateTime(booking.slot.endsAt)} น. กับ {slotCounselorLabel(booking.slot)}
         </div>
 
         <div className="flex flex-col">

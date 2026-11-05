@@ -3,6 +3,7 @@ import { BookingStatus } from "@/generated/prisma/enums";
 import { toDateKey, toTimeKey } from "@/lib/dates";
 import { buildStatusUpdateMessage, pushMessageToGroup } from "@/lib/line";
 import { sendBookingConfirmationEmail } from "@/lib/email";
+import { slotCounselorLabel } from "@/lib/counselors";
 import { FORMAT_LABELS } from "@/lib/formOptions";
 
 type BookingWithSlot = {
@@ -14,7 +15,8 @@ type BookingWithSlot = {
     date: Date;
     startsAt: Date;
     endsAt: Date;
-    counselor: { name: string };
+    counselor: { id: string; name: string };
+    partner?: { id: string; name: string } | null;
   };
 };
 
@@ -26,7 +28,7 @@ export async function notifyBookingStatus(booking: BookingWithSlot, status: Book
   try {
     const message = buildStatusUpdateMessage({
       clientName: booking.clientName,
-      counselorName: booking.slot.counselor.name,
+      counselorName: slotCounselorLabel(booking.slot),
       dateKey,
       startTime,
       endTime,
@@ -43,7 +45,7 @@ export async function notifyBookingStatus(booking: BookingWithSlot, status: Book
         to: booking.clientEmail,
         clientName: booking.clientName,
         studentId: booking.studentId,
-        counselorName: booking.slot.counselor.name,
+        counselorName: slotCounselorLabel(booking.slot),
         dateKey,
         startTime,
         endTime,
@@ -59,7 +61,7 @@ export async function updateBookingStatus(bookingId: string, status: BookingStat
   const booking = await prisma.booking.update({
     where: { id: bookingId },
     data: { status },
-    include: { slot: { include: { counselor: true } } },
+    include: { slot: { include: { counselor: true, partner: true } } },
   });
   await notifyBookingStatus(booking, status);
   return booking;

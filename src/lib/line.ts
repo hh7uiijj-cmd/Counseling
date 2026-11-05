@@ -58,24 +58,24 @@ export async function replyMessage(replyToken: string, messages: LineMessage[]) 
   return callLineApi("/message/reply", { replyToken, messages });
 }
 
-/** Build a text message that @-mentions a counselor's LINE account, e.g. for new booking alerts. */
-export function buildCounselorMentionMessage(counselorName: string, lineUserId: string) {
-  const mentionText = `@${counselorName}`;
-  const text = `${mentionText} มีการจองคิวใหม่เข้ามา กรุณาตรวจสอบและกดยืนยัน 🔔`;
-  return {
-    type: "text",
-    text,
-    mention: {
-      mentionees: [
-        {
-          index: 0,
-          length: mentionText.length,
-          type: "user",
-          userId: lineUserId,
-        },
-      ],
-    },
-  };
+/** Build a text message that @-mentions the counselors' LINE accounts, e.g. for new booking alerts. */
+export function buildCounselorMentionMessage(
+  counselors: { name: string; lineUserId: string }[]
+) {
+  let text = "";
+  const mentionees: { index: number; length: number; type: "user"; userId: string }[] = [];
+  for (const c of counselors) {
+    const mentionText = `@${c.name}`;
+    mentionees.push({
+      index: text.length,
+      length: mentionText.length,
+      type: "user",
+      userId: c.lineUserId,
+    });
+    text += `${mentionText} `;
+  }
+  text += "มีการจองคิวใหม่เข้ามา กรุณาตรวจสอบและกดยืนยัน 🔔";
+  return { type: "text", text, mention: { mentionees } };
 }
 
 export function buildBookingFlexMessage(params: {

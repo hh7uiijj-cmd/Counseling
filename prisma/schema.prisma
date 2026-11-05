@@ -64,18 +64,23 @@ model Admin {
 }
 
 model Counselor {
-  id         String   @id @default(cuid())
+  id         String     @id @default(cuid())
   name       String
   title      String? // e.g. specialty / role, shown to clients
   bio        String?
   photoUrl   String?
-  color      String   @default("#2563eb") // used to color-code this counselor on the calendar
-  active     Boolean  @default(true)
+  color      String     @default("#2563eb") // used to color-code this counselor on the calendar
+  active     Boolean    @default(true)
   lineUserId String? // LINE user ID to @-mention in group notifications for this counselor's bookings
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  // Fixed partner for paired shifts (set on both sides of the pair). Slots copy it at creation time.
+  partnerId  String?    @unique
+  partner    Counselor? @relation("CounselorPair", fields: [partnerId], references: [id], onDelete: SetNull)
+  partnerOf  Counselor? @relation("CounselorPair")
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
 
-  slots Slot[]
+  slots        Slot[] @relation("SlotMain")
+  partnerSlots Slot[] @relation("SlotPartner")
 }
 
 model ClosedDate {
@@ -88,24 +93,28 @@ model ClosedDate {
 }
 
 model Slot {
-  id          String   @id @default(cuid())
+  id          String     @id @default(cuid())
   counselorId String
-  counselor   Counselor @relation(fields: [counselorId], references: [id], onDelete: Cascade)
-  date        DateTime @db.Date
+  counselor   Counselor  @relation("SlotMain", fields: [counselorId], references: [id], onDelete: Cascade)
+  // Second counselor sitting the same shift (paired shifts). Null for solo slots.
+  partnerId   String?
+  partner     Counselor? @relation("SlotPartner", fields: [partnerId], references: [id], onDelete: SetNull)
+  date        DateTime   @db.Date
   startsAt    DateTime
   endsAt      DateTime
-  createdAt   DateTime @default(now())
+  createdAt   DateTime   @default(now())
 
   booking Booking?
 
   @@index([date])
   @@index([counselorId, date])
+  @@index([partnerId, date])
 }
 
 model Booking {
-  id                 String              @id @default(cuid())
-  slotId             String              @unique
-  slot               Slot                @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  id                 String             @id @default(cuid())
+  slotId             String             @unique
+  slot               Slot               @relation(fields: [slotId], references: [id], onDelete: Cascade)
   clientName         String // ชื่อ-นามสกุล
   studentId          String? // เลขระเบียน
   gender             Gender // เพศ
@@ -119,8 +128,8 @@ model Booking {
   clientEmail        String // E-mail Address
   lineId             String // ID Line
   note               String?
-  status             BookingStatus       @default(PENDING)
-  lineNotified       Boolean             @default(false)
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
+  status             BookingStatus      @default(PENDING)
+  lineNotified       Boolean            @default(false)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
 }

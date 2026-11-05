@@ -15,6 +15,7 @@ export async function GET() {
   const counselors = await prisma.counselor.findMany({
     orderBy: { createdAt: "asc" },
     include: {
+      partner: { select: { id: true, name: true } },
       _count: {
         select: { slots: true },
       },

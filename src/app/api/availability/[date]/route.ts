@@ -1,7 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { dateOnly, toTimeKey } from "@/lib/dates";
+import { slotCounselorLabel, slotIsActive, slotMembers } from "@/lib/counselors";
 import { BookingStatus } from "@/generated/prisma/enums";
+
+const MEMBER_SELECT = {
+  id: true,
+  name: true,
+  title: true,
+  color: true,
+  photoUrl: true,
+  active: true,
+} as const;
 
 export async function GET(
   _request: NextRequest,
@@ -22,16 +32,24 @@ export async function GET(
       counselor: { active: true },
     },
     include: {
-      counselor: { select: { id: true, name: true, title: true, color: true } },
+      counselor: { select: MEMBER_SELECT },
+      partner: { select: MEMBER_SELECT },
       booking: { select: { status: true } },
     },
     orderBy: [{ startsAt: "asc" }],
   });
 
-  const items = slots.map((slot) => ({
+  const items = slots.filter(slotIsActive).map((slot) => ({
     id: slot.id,
     counselorId: slot.counselor.id,
-    counselorName: slot.counselor.name,
+    counselorName: slotCounselorLabel(slot),
+    members: slotMembers(slot).map((m) => ({
+      id: m.id,
+      name: m.name,
+      title: m.title,
+      photoUrl: m.photoUrl,
+      color: m.color,
+    })),
     counselorTitle: slot.counselor.title,
     counselorColor: slot.counselor.color,
     startTime: toTimeKey(slot.startsAt),
