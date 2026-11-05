@@ -9,12 +9,12 @@ export default function Home() {
         <div className="mb-2 flex justify-end">
           <ThemeToggle />
         </div>
-        <div className="overflow-hidden rounded-2xl shadow-sm sm:rounded-3xl">
+        <div className="mx-auto max-w-xl overflow-hidden rounded-2xl shadow-sm sm:rounded-3xl">
           <Image
-            src="/brand/hero-banner.webp"
-            alt="ศูนย์ให้คำปรึกษา มหาวิทยาลัยสวนดุสิต"
-            width={1200}
-            height={400}
+            src="/brand/young-counselors.webp"
+            alt="โครงการเพื่อนวัยใส รู้ใจวัยรุ่นและวัยทำงาน (Young Counselors) รุ่นที่ 5"
+            width={1254}
+            height={1254}
             priority
             className="h-auto w-full object-cover"
           />
@@ -31,10 +31,18 @@ export default function Home() {
             className="h-16 w-16 rounded-full shadow-sm sm:h-[72px] sm:w-[72px]"
           />
           <div>
-            <h1 className="text-xl font-bold text-brand-blue-dark sm:text-2xl">
+            <p className="text-sm font-medium text-black/60 dark:text-white/70">
               ศูนย์ให้คำปรึกษา มหาวิทยาลัยสวนดุสิต
+            </p>
+            <h1 className="sr-only">
+              โครงการเพื่อนวัยใส รู้ใจวัยรุ่นและวัยทำงาน (Young Counselors) รุ่นที่ 5
             </h1>
-            <p className="mt-1 text-sm text-black/60 dark:text-white/70">
+            <p className="mx-auto mt-2 max-w-2xl text-sm leading-relaxed text-black/70 dark:text-white/80 sm:text-base">
+              นักศึกษาหลักสูตรจิตวิทยาอุตสาหกรรมและองค์การ คณะมนุษยศาสตร์และสังคมศาสตร์ ชั้นปีที่ 3
+              ปฏิบัติหน้าที่เป็น “นักศึกษาฝึกปฏิบัติการให้คำปรึกษา” ณ ศูนย์ให้คำปรึกษา มหาวิทยาลัยสวนดุสิต
+              (SDU Counseling Center)
+            </p>
+            <p className="mt-3 text-sm text-black/60 dark:text-white/70">
               เลือกวันศุกร์และช่วงเวลา ดูรูปและชื่อผู้ให้คำปรึกษา แล้วจองคิวได้ทันที
             </p>
           </div>
