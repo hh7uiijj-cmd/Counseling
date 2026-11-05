@@ -7,7 +7,6 @@ type Counselor = {
   name: string;
   fullName: string | null;
   hasUpload: boolean;
-  title: string | null;
   bio: string | null;
   photoUrl: string | null;
   partnerId: string | null;
@@ -25,7 +24,6 @@ export default function CounselorsPage() {
 
   const [name, setName] = useState("");
   const [fullName, setFullName] = useState("");
-  const [title, setTitle] = useState("");
   const [color, setColor] = useState("#2563eb");
   const [submitting, setSubmitting] = useState(false);
 
@@ -65,7 +63,6 @@ export default function CounselorsPage() {
       body: JSON.stringify({
         name,
         fullName: fullName || undefined,
-        title: title || undefined,
         photoUrl: photoUrl || undefined,
         color,
       }),
@@ -77,7 +74,6 @@ export default function CounselorsPage() {
     }
     setName("");
     setFullName("");
-    setTitle("");
     setPhotoUrl("");
     load();
   }
@@ -176,14 +172,6 @@ export default function CounselorsPage() {
           />
         </label>
         <label className="text-sm">
-          ตำแหน่ง/ความเชี่ยวชาญ
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="mt-1 block field"
-          />
-        </label>
-        <label className="text-sm">
           ลิงก์รูป (ถ้ามี)
           <input
             value={photoUrl}
@@ -217,14 +205,14 @@ export default function CounselorsPage() {
       >
         <h2 className="font-medium">นำเข้ารายชื่อหลายคนพร้อมกัน</h2>
         <p className="text-xs text-black/60 dark:text-white/65">
-          วางรายชื่อบรรทัดละ 1 คน รูปแบบ: ชื่อ,ตำแหน่ง/ความถนัด,ลิงก์รูป (ตำแหน่งและลิงก์รูปไม่ใส่ก็ได้)
+          วางรายชื่อบรรทัดละ 1 คน รูปแบบ: ชื่อเล่น,ชื่อจริง,ลิงก์รูป (ชื่อจริงและลิงก์รูปไม่ใส่ก็ได้ ผู้ให้คำปรึกษากรอกเองในหน้าลงเวรก็ได้)
           ชื่อที่ซ้ำกับที่มีอยู่จะถูกข้าม
         </p>
         <textarea
           value={importText}
           onChange={(e) => setImportText(e.target.value)}
           rows={5}
-          placeholder={"น้องเอ,การเรียน\nน้องบี,ความสัมพันธ์\nน้องซี"}
+          placeholder={"เอ,สมชาย ใจดี\nบี,สมหญิง รักเรียน\nซี"}
           className="field w-full"
         />
         {importMessage && <p className="text-sm text-brand-blue-dark">{importMessage}</p>}
@@ -246,7 +234,6 @@ export default function CounselorsPage() {
                 <th className="p-2">รูป</th>
                 <th className="p-2">ชื่อเล่น</th>
                 <th className="p-2">ชื่อจริง</th>
-                <th className="p-2">ตำแหน่ง</th>
                 <th className="p-2" title="ใช้กับโหมดจัดคู่หมุนเวียนอัตโนมัติเท่านั้น (การลงเวรเองไม่ต้องจับคู่)">คู่เวร (ไม่บังคับ)</th>
                 <th className="p-2">จำนวนคิวที่สร้าง</th>
                 <th className="p-2">LINE User ID (สำหรับแท็กชื่อ)</th>
@@ -289,7 +276,6 @@ export default function CounselorsPage() {
                   </td>
                   <td className="p-2">{c.name}</td>
                   <td className="p-2">{c.fullName || "-"}</td>
-                  <td className="p-2">{c.title || "-"}</td>
                   <td className="p-2">
                     <select
                       value={c.partnerId ?? ""}

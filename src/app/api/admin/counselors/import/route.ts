@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 
 const importSchema = z.object({
-  // One counselor per line: ชื่อ[,ตำแหน่ง/ความถนัด[,ลิงก์รูป]]
+  // One counselor per line: ชื่อเล่น[,ชื่อจริง[,ลิงก์รูป]]
   text: z.string().min(1).max(100_000),
 });
 
@@ -19,8 +19,8 @@ export async function POST(request: NextRequest) {
     .map((line) => line.trim())
     .filter(Boolean)
     .map((line) => {
-      const [name, title, photoUrl] = line.split(",").map((cell) => cell.trim());
-      return { name, title: title || null, photoUrl: photoUrl || null };
+      const [name, fullName, photoUrl] = line.split(",").map((cell) => cell.trim());
+      return { name, fullName: fullName || null, photoUrl: photoUrl || null };
     })
     .filter((row) => row.name);
 

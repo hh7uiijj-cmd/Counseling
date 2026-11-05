@@ -12,7 +12,6 @@ import { BookingStatus } from "@/generated/prisma/enums";
 const MEMBER_SELECT = {
   id: true,
   name: true,
-  title: true,
   color: true,
   photoUrl: true,
   photoUpdatedAt: true,
@@ -57,12 +56,10 @@ export async function GET(
             members: slotMembers(slot).map((m) => ({
               id: m.id,
               name: m.name,
-              title: m.title,
               fullName: m.fullName,
               photoUrl: effectivePhotoUrl(m),
               color: m.color,
             })),
-            counselorTitle: slot.counselor.title,
             counselorColor: slot.counselor.color,
             startTime: toTimeKey(slot.startsAt),
             endTime: toTimeKey(slot.endsAt),
