@@ -81,7 +81,8 @@ model Counselor {
 
   slots        Slot[]        @relation("SlotMain")
   partnerSlots Slot[]        @relation("SlotPartner")
-  swapRequests SwapRequest[]
+  swapRequests SwapRequest[] @relation("SwapRequester")
+  swapTargets  SwapRequest[] @relation("SwapTarget")
 }
 
 model ClosedDate {
@@ -159,11 +160,14 @@ model SwapRequest {
   toSlotId      String
   toSlot        Slot       @relation("SwapTo", fields: [toSlotId], references: [id], onDelete: Cascade)
   requestedById String
-  requestedBy   Counselor  @relation(fields: [requestedById], references: [id], onDelete: Cascade)
+  targetId      String
+  target        Counselor  @relation("SwapTarget", fields: [targetId], references: [id], onDelete: Cascade)
+  requestedBy   Counselor  @relation("SwapRequester", fields: [requestedById], references: [id], onDelete: Cascade)
   status        SwapStatus @default(PENDING)
   createdAt     DateTime   @default(now())
   resolvedAt    DateTime?
 
   @@index([fromSlotId])
   @@index([toSlotId])
+  @@index([targetId])
 }

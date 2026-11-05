@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getSessionCounselor, unauthorized } from "@/lib/counselorSession";
 import { getShiftSettings } from "@/lib/settings";
-import { hasActiveBooking, isLocked, notifyGroup, ownsSlot, pairPeople, shiftText } from "@/lib/shifts";
+import { hasActiveBooking, isLocked, isMember, notifyGroup, seatOf, shiftText } from "@/lib/shifts";
 import { SwapStatus } from "@/generated/prisma/enums";
 
 const schema = z.object({ action: z.enum(["accept", "decline", "cancel"]) });
@@ -27,17 +27,17 @@ export async function POST(
   const include = { counselor: true, partner: true, booking: { select: { status: true } } };
   const req = await prisma.swapRequest.findUnique({
     where: { id },
-    include: { fromSlot: { include }, toSlot: { include } },
+    include: { fromSlot: { include }, toSlot: { include }, requestedBy: true, target: true },
   });
   if (!req || req.status !== SwapStatus.PENDING) {
     return fail("not_pending", "คำขอนี้ถูกดำเนินการไปแล้วหรือไม่มีอยู่", 404);
   }
 
-  const { fromSlot, toSlot } = req;
+  const { fromSlot, toSlot, requestedBy, target } = req;
   const now = new Date();
 
   if (action === "cancel") {
-    if (!ownsSlot(fromSlot, me.id)) return fail("forbidden", "ไม่ใช่คำขอของคู่คุณ", 403);
+    if (req.requestedById !== me.id) return fail("forbidden", "ไม่ใช่คำขอของคุณ", 403);
     await prisma.swapRequest.update({
       where: { id },
       data: { status: SwapStatus.CANCELLED, resolvedAt: now },
@@ -45,8 +45,8 @@ export async function POST(
     return NextResponse.json({ ok: true });
   }
 
-  // accept / decline are decided by the pair that was asked (holds toSlot)
-  if (!ownsSlot(toSlot, me.id)) return fail("forbidden", "คำขอนี้ไม่ได้ส่งถึงคู่ของคุณ", 403);
+  // accept / decline are decided by the person who was asked
+  if (req.targetId !== me.id) return fail("forbidden", "คำขอนี้ไม่ได้ส่งถึงคุณ", 403);
 
   if (action === "decline") {
     await prisma.swapRequest.update({
@@ -54,16 +54,18 @@ export async function POST(
       data: { status: SwapStatus.DECLINED, resolvedAt: now },
     });
     await notifyGroup(
-      pairPeople(fromSlot),
-      `คำขอสลับเวร ${shiftText(fromSlot)} ↔ ${shiftText(toSlot)} ถูกปฏิเสธ ❌`
+      [requestedBy],
+      `${target.name} ปฏิเสธคำขอสลับเวร ${shiftText(fromSlot)} ↔ ${shiftText(toSlot)} ❌`
     );
     return NextResponse.json({ ok: true });
   }
 
-  // accept: re-check the world hasn't changed, then trade the two pairs atomically
+  // accept: re-check that nothing moved, then trade the two seats atomically
   const settings = await getShiftSettings();
-  if (fromSlot.counselorId === null || toSlot.counselorId === null) {
-    return fail("stale", "เวรใดเวรหนึ่งไม่มีเจ้าของแล้ว", 409);
+  const fromSeat = seatOf(fromSlot, requestedBy.id);
+  const toSeat = seatOf(toSlot, target.id);
+  if (!fromSeat || !toSeat || isMember(fromSlot, target.id) || isMember(toSlot, requestedBy.id)) {
+    return fail("stale", "เวรมีการเปลี่ยนแปลงแล้ว คำขอนี้ใช้ไม่ได้", 409);
   }
   if (hasActiveBooking(fromSlot) || hasActiveBooking(toSlot)) {
     return fail("has_booking", "สลับไม่ได้ เพราะมีผู้จองในเวรใดเวรหนึ่งแล้ว", 409);
@@ -72,37 +74,53 @@ export async function POST(
     return fail("locked", "สลับไม่ได้ เพราะใกล้ถึงเวลาเวรแล้ว", 409);
   }
 
-  const fromPair = { counselorId: fromSlot.counselorId, partnerId: fromSlot.partnerId };
-  const toPair = { counselorId: toSlot.counselorId, partnerId: toSlot.partnerId };
-
-  const swapped = await prisma.$transaction(async (tx) => {
-    // Guard with the owners we just read so a concurrent change makes this a no-op.
-    const a = await tx.slot.updateMany({ where: { id: fromSlot.id, ...fromPair }, data: toPair });
-    const b = await tx.slot.updateMany({ where: { id: toSlot.id, ...toPair }, data: fromPair });
-    if (a.count !== 1 || b.count !== 1) throw new Error("stale");
-    await tx.swapRequest.update({
-      where: { id },
-      data: { status: SwapStatus.ACCEPTED, resolvedAt: now },
-    });
-    await tx.swapRequest.updateMany({
-      where: {
-        status: SwapStatus.PENDING,
-        id: { not: id },
-        OR: [
-          { fromSlotId: { in: [fromSlot.id, toSlot.id] } },
-          { toSlotId: { in: [fromSlot.id, toSlot.id] } },
-        ],
-      },
-      data: { status: SwapStatus.CANCELLED, resolvedAt: now },
-    });
-    return true;
-  }).catch(() => false);
+  const swapped = await prisma
+    .$transaction(async (tx) => {
+      // Each update only matches while that exact person still holds that seat.
+      const a = await tx.slot.updateMany({
+        where: { id: fromSlot.id, [fromSeat]: requestedBy.id },
+        data: { [fromSeat]: target.id },
+      });
+      const b = await tx.slot.updateMany({
+        where: { id: toSlot.id, [toSeat]: target.id },
+        data: { [toSeat]: requestedBy.id },
+      });
+      if (a.count !== 1 || b.count !== 1) throw new Error("stale");
+      await tx.swapRequest.update({
+        where: { id },
+        data: { status: SwapStatus.ACCEPTED, resolvedAt: now },
+      });
+      // Any other pending request touching these two people on these two shifts is now void.
+      await tx.swapRequest.updateMany({
+        where: {
+          status: SwapStatus.PENDING,
+          id: { not: id },
+          AND: [
+            {
+              OR: [
+                { fromSlotId: { in: [fromSlot.id, toSlot.id] } },
+                { toSlotId: { in: [fromSlot.id, toSlot.id] } },
+              ],
+            },
+            {
+              OR: [
+                { requestedById: { in: [requestedBy.id, target.id] } },
+                { targetId: { in: [requestedBy.id, target.id] } },
+              ],
+            },
+          ],
+        },
+        data: { status: SwapStatus.CANCELLED, resolvedAt: now },
+      });
+      return true;
+    })
+    .catch(() => false);
 
   if (!swapped) return fail("stale", "เวรมีการเปลี่ยนแปลงระหว่างนี้ กรุณาโหลดหน้าใหม่", 409);
 
   await notifyGroup(
-    [...pairPeople(fromSlot), ...pairPeople(toSlot)],
-    `สลับเวรสำเร็จ ✅ ${shiftText(fromSlot)} ↔ ${shiftText(toSlot)}`
+    [requestedBy, target],
+    `สลับเวรสำเร็จ ✅ ${requestedBy.name} ↔ ${target.name} (${shiftText(fromSlot)} ↔ ${shiftText(toSlot)})`
   );
   return NextResponse.json({ ok: true });
 }

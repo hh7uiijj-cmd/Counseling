@@ -2,15 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionCounselor, unauthorized } from "@/lib/counselorSession";
 import { getShiftSettings } from "@/lib/settings";
-import { hasActiveBooking, isLocked, notifyGroup, ownsSlot, pairPeople, shiftText } from "@/lib/shifts";
-import { slotCounselorLabel } from "@/lib/counselors";
+import {
+  hasActiveBooking,
+  isLocked,
+  isMember,
+  notifyGroup,
+  seatsTaken,
+  shiftText,
+} from "@/lib/shifts";
+import { SEATS_PER_SHIFT, slotCounselorLabel, slotMembers } from "@/lib/counselors";
 import { SwapStatus } from "@/generated/prisma/enums";
 
 function fail(error: string, message: string, status: number) {
   return NextResponse.json({ error, message }, { status });
 }
 
-/** Claim an open shift for my whole pair. */
+/** Take one free seat on an open shift. The shift opens for clients once both seats are taken. */
 export async function POST(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -19,55 +26,62 @@ export async function POST(
   if (!me) return unauthorized();
   const { id } = await params;
 
-  if (!me.partner || !me.partner.active) {
-    return fail("no_pair", "คุณยังไม่มีคู่เวร กรุณาแจ้งแอดมินให้จับคู่ก่อน", 400);
-  }
-
   const now = new Date();
   const settings = await getShiftSettings();
 
-  const slot = await prisma.slot.findUnique({
-    where: { id },
-    include: { counselor: true, partner: true },
-  });
+  const slot = await prisma.slot.findUnique({ where: { id } });
   if (!slot) return fail("not_found", "ไม่พบเวรนี้", 404);
-  if (slot.counselorId !== null) return fail("slot_taken", "เวรนี้มีคู่อื่นลงไปแล้ว", 409);
+  if (isMember(slot, me.id)) return fail("already_member", "คุณลงเวรนี้อยู่แล้ว", 409);
+  if (seatsTaken(slot) >= SEATS_PER_SHIFT) return fail("slot_full", "เวรนี้มีผู้ให้คำปรึกษาครบ 2 คนแล้ว", 409);
   if (slot.startsAt <= now) return fail("past", "เวรนี้เลยเวลาไปแล้ว", 409);
 
   const closed = await prisma.closedDate.findUnique({ where: { date: slot.date } });
   if (closed) return fail("date_closed", "วันนี้ปิดทำการ", 409);
 
-  if (settings.maxShiftsPerPair > 0) {
+  if (settings.maxShiftsPerPerson > 0) {
     const held = await prisma.slot.count({
       where: {
         startsAt: { gte: now },
         OR: [{ counselorId: me.id }, { partnerId: me.id }],
       },
     });
-    if (held >= settings.maxShiftsPerPair) {
+    if (held >= settings.maxShiftsPerPerson) {
       return fail(
         "limit_reached",
-        `คู่ของคุณลงเวรครบ ${settings.maxShiftsPerPair} เวรแล้ว หากต้องการลงเพิ่มให้ยกเลิกเวรเดิมก่อน`,
+        `คุณลงเวรครบ ${settings.maxShiftsPerPerson} เวรแล้ว หากต้องการลงเพิ่มให้ยกเลิกเวรเดิมก่อน`,
         409
       );
     }
   }
 
-  // Atomic claim: only succeeds while the slot is still open.
-  const claimed = await prisma.slot.updateMany({
+  // Atomic: seat 1 first, otherwise seat 2. Each update only matches while that seat is still free.
+  let claimed = await prisma.slot.updateMany({
     where: { id, counselorId: null },
-    data: { counselorId: me.id, partnerId: me.partner.id },
+    data: { counselorId: me.id },
   });
-  if (claimed.count !== 1) return fail("slot_taken", "เวรนี้มีคู่อื่นลงไปแล้ว", 409);
+  if (claimed.count !== 1) {
+    claimed = await prisma.slot.updateMany({
+      where: { id, partnerId: null, counselorId: { not: null }, NOT: { counselorId: me.id } },
+      data: { partnerId: me.id },
+    });
+  }
+  if (claimed.count !== 1) return fail("slot_full", "เวรนี้มีผู้ให้คำปรึกษาครบ 2 คนแล้ว", 409);
 
+  const after = await prisma.slot.findUniqueOrThrow({
+    where: { id },
+    include: { counselor: true, partner: true },
+  });
+  const members = slotMembers(after);
   await notifyGroup(
-    [me, me.partner],
-    `ลงเวรแล้ว ✅ ${shiftText(slot)} (${me.name} และ ${me.partner.name})`
+    members,
+    members.length === SEATS_PER_SHIFT
+      ? `เวรครบ 2 คนแล้ว ✅ ${shiftText(after)} (${slotCounselorLabel(after)}) เปิดให้จองคิวได้แล้ว`
+      : `${me.name} ลงเวร ${shiftText(after)} รออีก 1 คน`
   );
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, full: members.length === SEATS_PER_SHIFT });
 }
 
-/** Release a shift my pair holds, making it open again. */
+/** Give up my seat. If the other counselor stays, they move to seat 1 and the shift closes to clients. */
 export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -81,7 +95,7 @@ export async function DELETE(
     where: { id },
     include: { counselor: true, partner: true, booking: { select: { status: true } } },
   });
-  if (!slot || !ownsSlot(slot, me.id)) return fail("not_found", "ไม่พบเวรของคุณ", 404);
+  if (!slot || !isMember(slot, me.id)) return fail("not_found", "ไม่พบเวรของคุณ", 404);
   if (hasActiveBooking(slot)) {
     return fail("has_booking", "เวรนี้มีผู้จองแล้ว กรุณาติดต่อแอดมินเพื่อยกเลิก", 409);
   }
@@ -93,19 +107,32 @@ export async function DELETE(
     );
   }
 
-  const label = slotCounselorLabel(slot);
-  const people = pairPeople(slot);
-  await prisma.$transaction([
-    prisma.swapRequest.updateMany({
+  const others = slotMembers(slot).filter((m) => m.id !== me.id);
+  const guard = { id, counselorId: slot.counselorId, partnerId: slot.partnerId };
+  const next = { counselorId: slot.partnerId === me.id ? slot.counselorId : slot.partnerId, partnerId: null };
+
+  const released = await prisma.$transaction(async (tx) => {
+    const res = await tx.slot.updateMany({ where: guard, data: next });
+    if (res.count !== 1) return false;
+    await tx.swapRequest.updateMany({
       where: {
         status: SwapStatus.PENDING,
-        OR: [{ fromSlotId: id }, { toSlotId: id }],
+        OR: [
+          { fromSlotId: id, requestedById: me.id },
+          { toSlotId: id, targetId: me.id },
+        ],
       },
       data: { status: SwapStatus.CANCELLED, resolvedAt: new Date() },
-    }),
-    prisma.slot.update({ where: { id }, data: { counselorId: null, partnerId: null } }),
-  ]);
+    });
+    return true;
+  });
+  if (!released) return fail("stale", "เวรมีการเปลี่ยนแปลงระหว่างนี้ กรุณาโหลดหน้าใหม่", 409);
 
-  await notifyGroup(people, `ยกเลิกเวร ❌ ${shiftText(slot)} (${label}) ขณะนี้เวรนี้ว่างให้คู่อื่นลงได้`);
+  await notifyGroup(
+    [me, ...others],
+    `${me.name} ยกเลิกเวร ❌ ${shiftText(slot)} ${
+      others.length ? `ตอนนี้เหลือ ${others.map((o) => o.name).join(", ")} รออีก 1 คน` : "ตอนนี้เวรนี้ว่าง"
+    }`
+  );
   return NextResponse.json({ ok: true });
 }

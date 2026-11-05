@@ -22,18 +22,26 @@ type Shift = {
   startTime: string;
   endTime: string;
   pairLabel: string;
+  members: { id?: string; name: string }[];
+  seatsOpen: number;
   hasBooking: boolean;
   locked: boolean;
 };
-type Swap = { id: string; from: Shift; to: Shift };
+type SwapTarget = Shift & { targetId: string; targetName: string };
+type Swap = {
+  id: string;
+  from: Shift;
+  to: Shift;
+  requesterName: string;
+  targetName: string;
+};
 type MeData = {
   counselor: { id: string; name: string };
-  partner: { id: string; name: string } | null;
-  settings: { maxShiftsPerPair: number; changeCutoffHours: number };
+  settings: { maxShiftsPerPerson: number; changeCutoffHours: number };
   myCount: number;
   myShifts: Shift[];
   openShifts: Shift[];
-  otherShifts: Shift[];
+  swapTargets: SwapTarget[];
   incoming: Swap[];
   outgoing: Swap[];
 };
@@ -151,10 +159,11 @@ export default function MeApp({ liffId }: { liffId: string }) {
 
   async function sendSwap(fromSlotId: string) {
     if (!swapTo) return;
+    const [toSlotId, targetId] = swapTo.split("|");
     const ok = await call(
       "/api/me/swaps",
-      { method: "POST", body: JSON.stringify({ fromSlotId, toSlotId: swapTo }) },
-      "ส่งคำขอสลับเวรแล้ว รอคู่อีกฝั่งตอบรับ"
+      { method: "POST", body: JSON.stringify({ fromSlotId, toSlotId, targetId }) },
+      "ส่งคำขอสลับเวรแล้ว รอคนนั้นตอบรับ"
     );
     if (ok) {
       setSwapFrom(null);
@@ -229,12 +238,12 @@ export default function MeApp({ liffId }: { liffId: string }) {
         <>
           <div className={card}>
             <p className="font-medium">{data.counselor.name}</p>
-            <p className="text-sm text-black/60 dark:text-white/70">
-              คู่เวร: {data.partner ? data.partner.name : "ยังไม่มีคู่ (แจ้งแอดมินให้จับคู่)"}
-            </p>
             <p className="mt-1 text-sm">
-              เวรที่ถืออยู่: {data.myCount}
-              {data.settings.maxShiftsPerPair > 0 ? ` / ${data.settings.maxShiftsPerPair}` : ""} เวร
+              เวรที่ลงไว้: {data.myCount}
+              {data.settings.maxShiftsPerPerson > 0 ? ` / ${data.settings.maxShiftsPerPerson}` : ""} เวร
+            </p>
+            <p className="mt-1 text-xs text-black/60 dark:text-white/70">
+              1 เวรมีผู้ให้คำปรึกษา 2 คน และจะเปิดให้จองเมื่อลงชื่อครบ 2 คน
             </p>
           </div>
 
@@ -252,12 +261,12 @@ export default function MeApp({ liffId }: { liffId: string }) {
               {data.incoming.map((r) => (
                 <div key={r.id} className={`${card} flex flex-col gap-2 text-sm`}>
                   <p>
-                    <b>{r.from.pairLabel}</b> ขอสลับ
+                    <b>{r.requesterName}</b> ขอสลับเวรกับคุณ
                   </p>
                   <p>
-                    ของเขา: {r.from.dateLabel} {timeRange(r.from)}
+                    เวรของเขา: {r.from.dateLabel} {timeRange(r.from)}
                     <br />
-                    ของคุณ: {r.to.dateLabel} {timeRange(r.to)}
+                    เวรของคุณ: {r.to.dateLabel} {timeRange(r.to)}
                   </p>
                   <div className="flex gap-2">
                     <button
@@ -283,7 +292,7 @@ export default function MeApp({ liffId }: { liffId: string }) {
           <section className="flex flex-col gap-2">
             <h2 className="font-medium">เวรของคุณ</h2>
             {data.myShifts.length === 0 && (
-              <p className="text-sm text-black/60 dark:text-white/70">ยังไม่มีเวร ลองลงเวรจากรายการเวรว่างด้านล่าง</p>
+              <p className="text-sm text-black/60 dark:text-white/70">ยังไม่ได้ลงเวร ลองลงจากรายการเวรว่างด้านล่าง</p>
             )}
             {data.myShifts.map((s) => {
               const canChange = !s.locked && !s.hasBooking;
@@ -296,9 +305,17 @@ export default function MeApp({ liffId }: { liffId: string }) {
                       </p>
                       <p className="text-xs text-black/60 dark:text-white/70">{s.pairLabel}</p>
                     </div>
-                    {s.hasBooking && (
+                    {s.hasBooking ? (
                       <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800">
                         มีผู้จองแล้ว
+                      </span>
+                    ) : s.seatsOpen > 0 ? (
+                      <span className="rounded-full bg-black/5 px-2 py-0.5 text-xs dark:bg-white/10">
+                        รออีก {s.seatsOpen} คน · ยังไม่เปิดให้จอง
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800">
+                        เปิดให้จองแล้ว
                       </span>
                     )}
                   </div>
@@ -335,12 +352,12 @@ export default function MeApp({ liffId }: { liffId: string }) {
                         onChange={(e) => setSwapTo(e.target.value)}
                         className="field text-sm"
                       >
-                        <option value="">-- เลือกเวรของคู่อื่นที่อยากสลับด้วย --</option>
-                        {data.otherShifts
+                        <option value="">-- เลือกคนที่อยากสลับเวรด้วย --</option>
+                        {data.swapTargets
                           .filter((o) => !o.locked && !o.hasBooking)
                           .map((o) => (
-                            <option key={o.id} value={o.id}>
-                              {o.dateLabel} {timeRange(o)} ({o.pairLabel})
+                            <option key={`${o.id}-${o.targetId}`} value={`${o.id}|${o.targetId}`}>
+                              {o.targetName} · {o.dateLabel} {timeRange(o)}
                             </option>
                           ))}
                       </select>
@@ -366,7 +383,7 @@ export default function MeApp({ liffId }: { liffId: string }) {
                   <p>
                     {r.from.dateLabel} {timeRange(r.from)} ↔ {r.to.dateLabel} {timeRange(r.to)}
                     <br />
-                    <span className="text-xs text-black/60 dark:text-white/70">กับ {r.to.pairLabel}</span>
+                    <span className="text-xs text-black/60 dark:text-white/70">กับ {r.targetName}</span>
                   </p>
                   <button
                     onClick={() => answerSwap(r.id, "cancel")}
@@ -387,12 +404,19 @@ export default function MeApp({ liffId }: { liffId: string }) {
             )}
             {data.openShifts.map((s) => (
               <div key={s.id} className={`${card} flex items-center justify-between gap-2`}>
-                <p className="font-medium">
-                  {s.dateLabel} · {timeRange(s)}
-                </p>
+                <div>
+                  <p className="font-medium">
+                    {s.dateLabel} · {timeRange(s)}
+                  </p>
+                  <p className="text-xs text-black/60 dark:text-white/70">
+                    {s.members.length > 0
+                      ? `ลงแล้ว: ${s.members.map((m) => m.name).join(", ")} · ว่าง ${s.seatsOpen} ที่`
+                      : `ว่างทั้ง 2 ที่`}
+                  </p>
+                </div>
                 <button
                   onClick={() => claim(s)}
-                  disabled={busy || !data.partner}
+                  disabled={busy}
                   className="btn btn-primary btn-sm"
                 >
                   ลงเวร

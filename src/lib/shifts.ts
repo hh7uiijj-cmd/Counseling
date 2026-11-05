@@ -1,6 +1,6 @@
 import { BookingStatus } from "@/generated/prisma/enums";
 import { buildMentionTextMessage, pushMessageToGroup } from "@/lib/line";
-import { slotCounselorLabel, slotMembers } from "@/lib/counselors";
+import { SEATS_PER_SHIFT, slotCounselorLabel, slotMembers } from "@/lib/counselors";
 import { thaiDateLabel, toDateKey, toTimeKey } from "@/lib/dates";
 
 type Person = { id: string; name: string; lineUserId: string | null };
@@ -17,8 +17,20 @@ export type ShiftSlot = {
   booking?: { status: BookingStatus } | null;
 };
 
-export function ownsSlot(slot: { counselorId: string | null; partnerId: string | null }, counselorId: string) {
+/** Is this counselor sitting one of the shift's two seats? */
+export function isMember(slot: { counselorId: string | null; partnerId: string | null }, counselorId: string) {
   return slot.counselorId === counselorId || slot.partnerId === counselorId;
+}
+
+/** Which seat column a counselor holds on a shift, if any. */
+export function seatOf(slot: { counselorId: string | null; partnerId: string | null }, counselorId: string) {
+  if (slot.counselorId === counselorId) return "counselorId" as const;
+  if (slot.partnerId === counselorId) return "partnerId" as const;
+  return null;
+}
+
+export function seatsTaken(slot: { counselorId: string | null; partnerId: string | null }) {
+  return (slot.counselorId ? 1 : 0) + (slot.partnerId ? 1 : 0);
 }
 
 export function hasActiveBooking(slot: { booking?: { status: BookingStatus } | null }) {
@@ -26,7 +38,7 @@ export function hasActiveBooking(slot: { booking?: { status: BookingStatus } | n
   return status === BookingStatus.PENDING || status === BookingStatus.CONFIRMED;
 }
 
-/** True once a shift is too close to start (or already started) for the pair to release or swap it. */
+/** True once a shift is too close to start (or already started) to be released or swapped. */
 export function isLocked(slot: { startsAt: Date }, cutoffHours: number, now = new Date()) {
   return slot.startsAt.getTime() - cutoffHours * 3600_000 < now.getTime();
 }
@@ -40,12 +52,14 @@ export function toShiftItem(slot: ShiftSlot, cutoffHours: number, now = new Date
     startTime: toTimeKey(slot.startsAt),
     endTime: toTimeKey(slot.endsAt),
     pairLabel: slotCounselorLabel(slot),
+    members: slotMembers(slot).map((m) => ({ id: m.id, name: m.name })),
+    seatsOpen: SEATS_PER_SHIFT - seatsTaken(slot),
     hasBooking: hasActiveBooking(slot),
     locked: isLocked(slot, cutoffHours, now),
   };
 }
 
-export function shiftText(slot: ShiftSlot) {
+export function shiftText(slot: { date: Date; startsAt: Date; endsAt: Date }) {
   const dateKey = toDateKey(slot.date);
   return `${thaiDateLabel(dateKey)} ${toTimeKey(slot.startsAt)}-${toTimeKey(slot.endsAt)} น.`;
 }
@@ -61,8 +75,4 @@ export async function notifyGroup(people: Person[], text: string) {
   } catch (err) {
     console.error("Failed to send shift notification", err);
   }
-}
-
-export function pairPeople(slot: ShiftSlot): Person[] {
-  return slotMembers(slot);
 }

@@ -8,13 +8,15 @@ type Member = {
   active?: boolean;
 };
 
-/** `counselor` is null for an open shift that no pair has claimed yet. */
+/** A shift has two seats: `counselor` (seat 1) and `partner` (seat 2). Either may be empty. */
 type SlotWithMembers = {
   counselor: Member | null;
   partner?: Member | null;
 };
 
-/** All counselors sitting a slot: the main counselor first, then the partner (if any). */
+export const SEATS_PER_SHIFT = 2;
+
+/** Counselors currently sitting a slot (0, 1 or 2 of them). */
 export function slotMembers<T extends Member>(slot: {
   counselor: T | null;
   partner?: T | null;
@@ -24,13 +26,16 @@ export function slotMembers<T extends Member>(slot: {
 
 export const OPEN_SHIFT_LABEL = "ว่าง (รอลงเวร)";
 
-/** "A และ B" for paired slots, "A" for solo slots, or a placeholder for open shifts. */
+/** "A และ B" when full, "A (รออีก 1 คน)" with one seat taken, or a placeholder when empty. */
 export function slotCounselorLabel(slot: SlotWithMembers) {
   const names = slotMembers(slot).map((m) => m.name);
-  return names.length > 0 ? names.join(" และ ") : OPEN_SHIFT_LABEL;
+  if (names.length === 0) return OPEN_SHIFT_LABEL;
+  if (names.length < SEATS_PER_SHIFT) return `${names.join(" และ ")} (รออีก ${SEATS_PER_SHIFT - names.length} คน)`;
+  return names.join(" และ ");
 }
 
-/** A slot is bookable only when it is claimed and every counselor on it is active. */
+/** A slot can be booked by clients only once both seats are filled by active counselors. */
 export function slotIsActive(slot: SlotWithMembers) {
-  return slot.counselor != null && slotMembers(slot).every((m) => m.active !== false);
+  const members = slotMembers(slot);
+  return members.length === SEATS_PER_SHIFT && members.every((m) => m.active !== false);
 }

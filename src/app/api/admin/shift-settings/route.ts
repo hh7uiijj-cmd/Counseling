@@ -3,7 +3,7 @@ import { z } from "zod";
 import { getShiftSettings, saveShiftSettings } from "@/lib/settings";
 
 const schema = z.object({
-  maxShiftsPerPair: z.number().int().min(0).max(100),
+  maxShiftsPerPerson: z.number().int().min(0).max(100),
   changeCutoffHours: z.number().int().min(0).max(24 * 30),
 });
 

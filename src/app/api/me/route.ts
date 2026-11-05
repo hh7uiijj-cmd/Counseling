@@ -3,7 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { dateOnly, toDateKey } from "@/lib/dates";
 import { getSessionCounselor, unauthorized } from "@/lib/counselorSession";
 import { getShiftSettings } from "@/lib/settings";
-import { ownsSlot, toShiftItem } from "@/lib/shifts";
+import { isMember, seatsTaken, toShiftItem } from "@/lib/shifts";
+import { SEATS_PER_SHIFT } from "@/lib/counselors";
 import { SwapStatus } from "@/generated/prisma/enums";
 
 export const dynamic = "force-dynamic";
@@ -14,20 +15,21 @@ export async function GET() {
 
   const now = new Date();
   const settings = await getShiftSettings();
+  const include = { counselor: true, partner: true, booking: { select: { status: true } } };
 
   const [slots, closedDates, swaps] = await Promise.all([
     prisma.slot.findMany({
       where: { startsAt: { gte: now } },
-      include: { counselor: true, partner: true, booking: { select: { status: true } } },
+      include,
       orderBy: { startsAt: "asc" },
     }),
     prisma.closedDate.findMany({ where: { date: { gte: dateOnly(toDateKey(now)) } } }),
     prisma.swapRequest.findMany({
-      where: { status: SwapStatus.PENDING },
-      include: {
-        fromSlot: { include: { counselor: true, partner: true, booking: { select: { status: true } } } },
-        toSlot: { include: { counselor: true, partner: true, booking: { select: { status: true } } } },
+      where: {
+        status: SwapStatus.PENDING,
+        OR: [{ requestedById: me.id }, { targetId: me.id }],
       },
+      include: { fromSlot: { include }, toSlot: { include }, requestedBy: true, target: true },
       orderBy: { createdAt: "asc" },
     }),
   ]);
@@ -35,22 +37,35 @@ export async function GET() {
   const closed = new Set(closedDates.map((c) => toDateKey(c.date)));
   const item = (s: (typeof slots)[number]) => toShiftItem(s, settings.changeCutoffHours, now);
 
-  const mine = slots.filter((s) => ownsSlot(s, me.id));
-  const open = slots.filter((s) => s.counselorId === null && !closed.has(toDateKey(s.date)));
-  const others = slots.filter((s) => s.counselorId !== null && !ownsSlot(s, me.id));
+  const mine = slots.filter((s) => isMember(s, me.id));
+  const open = slots.filter(
+    (s) => seatsTaken(s) < SEATS_PER_SHIFT && !isMember(s, me.id) && !closed.has(toDateKey(s.date))
+  );
+  // Everyone else I could ask to trade places with.
+  const swapTargets = slots
+    .filter((s) => !isMember(s, me.id))
+    .flatMap((s) =>
+      [s.counselor, s.partner].flatMap((c) =>
+        c ? [{ ...item(s), targetId: c.id, targetName: c.name }] : []
+      )
+    );
 
-  const incoming = swaps.filter((r) => ownsSlot(r.toSlot, me.id));
-  const outgoing = swaps.filter((r) => ownsSlot(r.fromSlot, me.id));
+  const swapItem = (r: (typeof swaps)[number]) => ({
+    id: r.id,
+    from: item(r.fromSlot),
+    to: item(r.toSlot),
+    requesterName: r.requestedBy.name,
+    targetName: r.target.name,
+  });
 
   return NextResponse.json({
     counselor: { id: me.id, name: me.name },
-    partner: me.partner ? { id: me.partner.id, name: me.partner.name } : null,
     settings,
     myCount: mine.length,
     myShifts: mine.map(item),
     openShifts: open.map(item),
-    otherShifts: others.map(item),
-    incoming: incoming.map((r) => ({ id: r.id, from: item(r.fromSlot), to: item(r.toSlot) })),
-    outgoing: outgoing.map((r) => ({ id: r.id, from: item(r.fromSlot), to: item(r.toSlot) })),
+    swapTargets,
+    incoming: swaps.filter((r) => r.targetId === me.id).map(swapItem),
+    outgoing: swaps.filter((r) => r.requestedById === me.id).map(swapItem),
   });
 }

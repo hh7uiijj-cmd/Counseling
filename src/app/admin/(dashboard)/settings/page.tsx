@@ -23,7 +23,7 @@ export default function SettingsPage() {
       .then((r) => r.json())
       .then((d) => {
         if (d.settings) {
-          setMaxShifts(d.settings.maxShiftsPerPair);
+          setMaxShifts(d.settings.maxShiftsPerPerson);
           setCutoffHours(d.settings.changeCutoffHours);
         }
       })
@@ -37,7 +37,7 @@ export default function SettingsPage() {
     const res = await fetch("/api/admin/shift-settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ maxShiftsPerPair: maxShifts, changeCutoffHours: cutoffHours }),
+      body: JSON.stringify({ maxShiftsPerPerson: maxShifts, changeCutoffHours: cutoffHours }),
     });
     setSavingShift(false);
     setShiftResult(
@@ -176,11 +176,11 @@ LINE_GROUP_ID="..."`}
       <section className="rounded-xl border border-black/10 p-4 dark:border-white/10">
         <h2 className="mb-1 font-medium">กติกาการลงเวร</h2>
         <p className="mb-3 text-xs text-black/60 dark:text-white/65">
-          ใช้กับหน้าลงเวรของผู้ให้คำปรึกษา (ใส่ 0 = ไม่จำกัด)
+          ใช้กับหน้าลงเวรของผู้ให้คำปรึกษา ผู้ขอรับคำปรึกษาจะจองได้เมื่อเวรมีผู้ให้คำปรึกษาครบ 2 คน (ใส่ 0 = ไม่จำกัด)
         </p>
         <form onSubmit={handleSaveShiftSettings} className="flex flex-wrap items-end gap-3">
           <label className="text-sm">
-            จำนวนเวรสูงสุดที่คู่ถือไว้พร้อมกัน
+            จำนวนเวรสูงสุดที่แต่ละคนถือไว้พร้อมกัน
             <input
               type="number"
               min={0}

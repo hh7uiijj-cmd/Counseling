@@ -1,13 +1,13 @@
 import { prisma } from "@/lib/prisma";
 
 export type ShiftSettings = {
-  /** Max upcoming shifts one pair may hold at once. 0 = unlimited. */
-  maxShiftsPerPair: number;
+  /** Max upcoming shifts one counselor may hold at once. 0 = unlimited. */
+  maxShiftsPerPerson: number;
   /** Claimed shifts can't be released or swapped within this many hours of starting. 0 = no cutoff. */
   changeCutoffHours: number;
 };
 
-const DEFAULTS: ShiftSettings = { maxShiftsPerPair: 2, changeCutoffHours: 24 };
+const DEFAULTS: ShiftSettings = { maxShiftsPerPerson: 2, changeCutoffHours: 24 };
 
 function toInt(value: string | undefined, fallback: number) {
   const n = Number(value);
@@ -16,11 +16,11 @@ function toInt(value: string | undefined, fallback: number) {
 
 export async function getShiftSettings(): Promise<ShiftSettings> {
   const rows = await prisma.setting.findMany({
-    where: { key: { in: ["maxShiftsPerPair", "changeCutoffHours"] } },
+    where: { key: { in: ["maxShiftsPerPerson", "changeCutoffHours"] } },
   });
   const map = new Map(rows.map((r) => [r.key, r.value]));
   return {
-    maxShiftsPerPair: toInt(map.get("maxShiftsPerPair"), DEFAULTS.maxShiftsPerPair),
+    maxShiftsPerPerson: toInt(map.get("maxShiftsPerPerson"), DEFAULTS.maxShiftsPerPerson),
     changeCutoffHours: toInt(map.get("changeCutoffHours"), DEFAULTS.changeCutoffHours),
   };
 }

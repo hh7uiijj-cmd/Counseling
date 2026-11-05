@@ -157,7 +157,7 @@ export default function SlotsPage() {
     setRotMessage(
       rotMode === "rotation"
         ? `สร้างคิวสำเร็จ ${data.created} คิว (หมุนเวียน ${data.pairs} คู่)`
-        : `สร้างเวรว่างสำเร็จ ${data.created} เวร ให้คู่ลงเวรเองได้ที่หน้าลงเวร`
+        : `สร้างเวรว่างสำเร็จ ${data.created} เวร ให้ผู้ให้คำปรึกษาลงชื่อเองได้ที่หน้าลงเวร`
     );
     load();
   }
@@ -199,17 +199,17 @@ export default function SlotsPage() {
       <section className="rounded-xl border border-black/10 p-4 dark:border-white/10">
         <h2 className="mb-1 font-medium">สร้างเวรทั้งช่วง (วันศุกร์ เช้า-บ่าย)</h2>
         <p className="mb-3 text-xs text-black/60 dark:text-white/65">
-          เลือกว่าจะให้ระบบจัดคู่ให้เอง หรือสร้างเวรว่างให้แต่ละคู่เลือกลงเอง ข้ามวันปิดทำการและเวลาที่มีคิวอยู่แล้ว
-          เวรว่างจะยังไม่เปิดให้ผู้ขอรับคำปรึกษาจองจนกว่าจะมีคู่ลงเวร
+          เลือกว่าจะให้ระบบจัดคู่ให้เอง หรือสร้างเวรว่างให้ผู้ให้คำปรึกษาลงชื่อเอง (เวรละ 2 คน) ข้ามวันปิดทำการและเวลาที่มีคิวอยู่แล้ว
+          เวรจะยังไม่เปิดให้ผู้ขอรับคำปรึกษาจองจนกว่าจะมีผู้ให้คำปรึกษาลงชื่อครบ 2 คน
         </p>
         <div className="mb-3 flex flex-wrap gap-4 text-sm">
           <label className="flex items-center gap-2">
             <input type="radio" checked={rotMode === "open"} onChange={() => setRotMode("open")} />
-            สร้างเวรว่าง ให้คู่เลือกลงเอง
+            สร้างเวรว่าง ให้ผู้ให้คำปรึกษาลงเอง (คนละ 1 ที่ รอครบ 2 คนจึงเปิดจอง)
           </label>
           <label className="flex items-center gap-2">
             <input type="radio" checked={rotMode === "rotation"} onChange={() => setRotMode("rotation")} />
-            จัดคู่หมุนเวียนอัตโนมัติ (ต้องจับคู่ในหน้า &quot;ผู้ให้คำปรึกษา&quot; ก่อน)
+            จัดคู่หมุนเวียนอัตโนมัติ (ใช้คู่ที่จับไว้ในหน้า &quot;ผู้ให้คำปรึกษา&quot;)
           </label>
         </div>
         <form onSubmit={handleRotation} className="flex flex-col gap-3">
@@ -476,10 +476,10 @@ export default function SlotsPage() {
                       {s.counselor ? (
                         <>
                           {s.counselor.name}
-                          {s.partner ? ` และ ${s.partner.name}` : ""}
+                          {s.partner ? ` และ ${s.partner.name}` : " (รออีก 1 คน)"}
                         </>
                       ) : (
-                        <span className="text-black/50 dark:text-white/65">ว่าง (รอคู่ลงเวร)</span>
+                        <span className="text-black/50 dark:text-white/65">ว่าง (รอลงเวร)</span>
                       )}
                     </td>
                     <td className="p-2">

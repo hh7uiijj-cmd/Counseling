@@ -233,7 +233,7 @@ export default function CounselorsPage() {
                 <th className="p-2">รูป</th>
                 <th className="p-2">ชื่อ</th>
                 <th className="p-2">ตำแหน่ง</th>
-                <th className="p-2">คู่เวร</th>
+                <th className="p-2" title="ใช้กับโหมดจัดคู่หมุนเวียนอัตโนมัติเท่านั้น (การลงเวรเองไม่ต้องจับคู่)">คู่เวร (ไม่บังคับ)</th>
                 <th className="p-2">จำนวนคิวที่สร้าง</th>
                 <th className="p-2">LINE User ID (สำหรับแท็กชื่อ)</th>
                 <th className="p-2">สถานะ</th>
