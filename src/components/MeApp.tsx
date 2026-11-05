@@ -22,7 +22,7 @@ type Shift = {
   startTime: string;
   endTime: string;
   pairLabel: string;
-  members: { id?: string; name: string }[];
+  members: { id?: string; name: string; photoUrl?: string | null }[];
   seatsOpen: number;
   hasBooking: boolean;
   locked: boolean;
@@ -148,6 +148,71 @@ function ProfileForm({
         {submitLabel}
       </button>
     </form>
+  );
+}
+
+/** The two seats of a shift as boxes: filled ones show the person, empty ones can be tapped to join. */
+function SeatBoxes({
+  shift,
+  myId,
+  onClaim,
+  busy,
+}: {
+  shift: Shift;
+  myId: string;
+  onClaim?: (s: Shift) => void;
+  busy: boolean;
+}) {
+  const seats = [0, 1].map((i) => shift.members[i] ?? null);
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      {seats.map((m, i) =>
+        m ? (
+          <div
+            key={i}
+            className={`flex items-center gap-2 rounded-lg border p-2 ${
+              m.id === myId
+                ? "border-brand-blue bg-brand-blue/10"
+                : "border-black/10 bg-black/5 dark:border-white/10 dark:bg-white/5"
+            }`}
+          >
+            {m.photoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={m.photoUrl} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" />
+            ) : (
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-black/10 text-xs dark:bg-white/10">
+                {m.name.trim().charAt(0)}
+              </span>
+            )}
+            <div className="min-w-0">
+              <p className="text-xs text-black/50 dark:text-white/60">ที่ {i + 1}</p>
+              <p className="truncate text-sm font-medium">
+                {m.name}
+                {m.id === myId ? " (คุณ)" : ""}
+              </p>
+            </div>
+          </div>
+        ) : onClaim ? (
+          <button
+            key={i}
+            onClick={() => onClaim(shift)}
+            disabled={busy}
+            className="flex flex-col items-start justify-center rounded-lg border border-dashed border-brand-blue p-2 text-left hover:bg-brand-blue/10 disabled:opacity-50"
+          >
+            <span className="text-xs text-black/50 dark:text-white/60">ที่ {i + 1}</span>
+            <span className="text-sm font-medium text-brand-blue-dark">ว่าง · กดลงชื่อ</span>
+          </button>
+        ) : (
+          <div
+            key={i}
+            className="flex flex-col justify-center rounded-lg border border-dashed border-black/20 p-2 dark:border-white/20"
+          >
+            <span className="text-xs text-black/50 dark:text-white/60">ที่ {i + 1}</span>
+            <span className="text-sm text-black/50 dark:text-white/60">ว่าง</span>
+          </div>
+        )
+      )}
+    </div>
   );
 }
 
@@ -472,7 +537,6 @@ export default function MeApp({ liffId }: { liffId: string }) {
                       <p className="font-medium">
                         {s.dateLabel} · {timeRange(s)}
                       </p>
-                      <p className="text-xs text-black/60 dark:text-white/70">{s.pairLabel}</p>
                     </div>
                     {s.hasBooking ? (
                       <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800">
@@ -488,6 +552,7 @@ export default function MeApp({ liffId }: { liffId: string }) {
                       </span>
                     )}
                   </div>
+                  <SeatBoxes shift={s} myId={data.counselor.id} busy={busy} />
                   {canChange ? (
                     <div className="flex gap-2">
                       <button
@@ -567,29 +632,16 @@ export default function MeApp({ liffId }: { liffId: string }) {
           )}
 
           <section className="flex flex-col gap-2">
-            <h2 className="font-medium">เวรว่าง</h2>
+            <h2 className="font-medium">เวรว่าง (เลือกที่ว่างแล้วกดลงชื่อ)</h2>
             {data.openShifts.length === 0 && (
               <p className="text-sm text-black/60 dark:text-white/70">ตอนนี้ไม่มีเวรว่าง</p>
             )}
             {data.openShifts.map((s) => (
-              <div key={s.id} className={`${card} flex items-center justify-between gap-2`}>
-                <div>
-                  <p className="font-medium">
-                    {s.dateLabel} · {timeRange(s)}
-                  </p>
-                  <p className="text-xs text-black/60 dark:text-white/70">
-                    {s.members.length > 0
-                      ? `ลงแล้ว: ${s.members.map((m) => m.name).join(", ")} · ว่าง ${s.seatsOpen} ที่`
-                      : `ว่างทั้ง 2 ที่`}
-                  </p>
-                </div>
-                <button
-                  onClick={() => claim(s)}
-                  disabled={busy}
-                  className="btn btn-primary btn-sm"
-                >
-                  ลงเวร
-                </button>
+              <div key={s.id} className={`${card} flex flex-col gap-2`}>
+                <p className="font-medium">
+                  {s.dateLabel} · {timeRange(s)}
+                </p>
+                <SeatBoxes shift={s} myId={data.counselor.id} onClaim={claim} busy={busy} />
               </div>
             ))}
           </section>
