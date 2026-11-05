@@ -11,6 +11,29 @@ function nextFriday() {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
+const SAMPLE_GROUPS: { title: string; items: { kind: string; label: string }[] }[] = [
+  {
+    title: "ลงเวร / สลับเวร (ผู้ให้คำปรึกษา)",
+    items: [
+      { kind: "signup-card", label: "การ์ดเปิดลงเวร" },
+      { kind: "shift-signup", label: "มีคนลงเวร (รออีก 1 คน)" },
+      { kind: "shift-full", label: "เวรครบ 2 คน" },
+      { kind: "shift-cancel", label: "ยกเลิกเวร" },
+      { kind: "swap-request", label: "ขอสลับเวร" },
+      { kind: "swap-accepted", label: "สลับเวรสำเร็จ" },
+      { kind: "swap-declined", label: "ปฏิเสธสลับเวร" },
+    ],
+  },
+  {
+    title: "ผู้ขอรับคำปรึกษา",
+    items: [
+      { kind: "booking-new", label: "มีคนจองคิวใหม่ (การ์ด + ปุ่มยืนยัน/ยกเลิก)" },
+      { kind: "booking-confirmed", label: "ยืนยันการจองแล้ว" },
+      { kind: "booking-cancelled", label: "ยกเลิกการจอง" },
+    ],
+  },
+];
+
 export default function AnnouncePage() {
   const [counselors, setCounselors] = useState<Counselor[]>([]);
   const [signupUrl, setSignupUrl] = useState<string | null>(null);
@@ -19,7 +42,7 @@ export default function AnnouncePage() {
   const [mentionIds, setMentionIds] = useState<string[]>([]);
   const [date, setDate] = useState(nextFriday());
   const [sending, setSending] = useState(false);
-  const [testing, setTesting] = useState(false);
+  const [testing, setTesting] = useState<string | null>(null);
   const [cardNote, setCardNote] = useState("");
   const [sendingCard, setSendingCard] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
@@ -73,15 +96,19 @@ export default function AnnouncePage() {
     }
   }
 
-  async function sendShiftTest() {
-    setTesting(true);
+  async function sendSample(kind: string, label: string) {
+    setTesting(kind);
     setResult(null);
-    const res = await fetch("/api/admin/line-broadcast/shift-test", { method: "POST" });
+    const res = await fetch("/api/admin/line-broadcast/sample", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind }),
+    });
     const d = await res.json().catch(() => ({}));
-    setTesting(false);
+    setTesting(null);
     setResult(
       res.ok
-        ? { ok: true, message: "ส่งข้อความทดสอบลงเวรเข้ากลุ่มแล้ว (2 ข้อความ) ไปดูในกลุ่ม LINE ได้เลย" }
+        ? { ok: true, message: `ส่งข้อความทดสอบ "${label}" เข้ากลุ่มแล้ว ไปดูในกลุ่ม LINE ได้เลย` }
         : { ok: false, message: d.message || "ส่งไม่สำเร็จ" }
     );
   }
@@ -150,13 +177,30 @@ export default function AnnouncePage() {
       </section>
 
       <section className="rounded-xl border border-black/10 p-4 dark:border-white/10">
-        <h2 className="mb-1 font-medium">ทดสอบข้อความลงเวร</h2>
+        <h2 className="mb-1 font-medium">ทดสอบข้อความอัตโนมัติทุกแบบ</h2>
         <p className="mb-3 text-sm text-black/60 dark:text-white/75">
-          ให้บอทส่งตัวอย่างข้อความตอนมีคนลงเวร (รออีก 1 คน และเวรครบ 2 คน) เข้ากลุ่ม LINE ไม่มีการบันทึกข้อมูลจริงในระบบ
+          กดปุ่มเพื่อให้บอทส่ง &quot;ตัวอย่าง&quot; ข้อความนั้นเข้ากลุ่ม LINE (ขึ้นต้น 🧪 [ทดสอบ] ไม่มีการบันทึกข้อมูลจริงในระบบ
+          ปุ่มยืนยัน/ยกเลิกบนการ์ดจองตัวอย่างจะตอบว่าไม่พบข้อมูลการจอง)
         </p>
-        <button onClick={sendShiftTest} disabled={testing || !configured} className="btn btn-primary">
-          {testing ? "กำลังส่ง..." : "ทดสอบลงเวร (ส่งเข้ากลุ่ม)"}
-        </button>
+        <div className="flex flex-col gap-4">
+          {SAMPLE_GROUPS.map((g) => (
+            <div key={g.title}>
+              <h3 className="mb-2 text-sm font-medium">{g.title}</h3>
+              <div className="flex flex-wrap gap-2">
+                {g.items.map((it) => (
+                  <button
+                    key={it.kind}
+                    onClick={() => sendSample(it.kind, it.label)}
+                    disabled={testing !== null || !configured}
+                    className="btn btn-secondary"
+                  >
+                    {testing === it.kind ? "กำลังส่ง..." : it.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       </section>
 
       <section className="rounded-xl border border-black/10 p-4 dark:border-white/10">
