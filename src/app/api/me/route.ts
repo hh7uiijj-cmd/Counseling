@@ -5,6 +5,7 @@ import { getSessionCounselor, unauthorized } from "@/lib/counselorSession";
 import { getShiftSettings } from "@/lib/settings";
 import { isMember, seatsTaken, toShiftItem } from "@/lib/shifts";
 import { SEATS_PER_SHIFT } from "@/lib/counselors";
+import { effectivePhotoUrl } from "@/lib/photos";
 import { SwapStatus } from "@/generated/prisma/enums";
 
 export const dynamic = "force-dynamic";
@@ -59,7 +60,12 @@ export async function GET() {
   });
 
   return NextResponse.json({
-    counselor: { id: me.id, name: me.name },
+    counselor: {
+      id: me.id,
+      name: me.name,
+      fullName: me.fullName,
+      photoUrl: effectivePhotoUrl(me),
+    },
     settings,
     myCount: mine.length,
     myShifts: mine.map(item),

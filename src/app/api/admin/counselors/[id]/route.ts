@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 
 const updateSchema = z.object({
   name: z.string().min(1).optional(),
+  fullName: z.string().nullable().optional(),
   title: z.string().nullable().optional(),
   bio: z.string().nullable().optional(),
   photoUrl: z.string().nullable().optional(),
@@ -54,6 +55,11 @@ export async function PATCH(
         await tx.counselor.update({ where: { id }, data: { partnerId } });
         await tx.counselor.update({ where: { id: partnerId }, data: { partnerId: id } });
       }
+    }
+    // Setting/clearing a photo link by hand replaces any photo the counselor uploaded.
+    if (rest.photoUrl !== undefined) {
+      await tx.counselorPhoto.deleteMany({ where: { counselorId: id } });
+      return tx.counselor.update({ where: { id }, data: { ...rest, photoUpdatedAt: null } });
     }
     return tx.counselor.update({ where: { id }, data: rest });
   });

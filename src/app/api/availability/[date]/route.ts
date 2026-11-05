@@ -6,6 +6,7 @@ import {
   slotIsActive,
   slotMembers,
 } from "@/lib/counselors";
+import { effectivePhotoUrl } from "@/lib/photos";
 import { BookingStatus } from "@/generated/prisma/enums";
 
 const MEMBER_SELECT = {
@@ -14,6 +15,8 @@ const MEMBER_SELECT = {
   title: true,
   color: true,
   photoUrl: true,
+  photoUpdatedAt: true,
+  fullName: true,
   active: true,
 } as const;
 
@@ -55,7 +58,8 @@ export async function GET(
               id: m.id,
               name: m.name,
               title: m.title,
-              photoUrl: m.photoUrl,
+              fullName: m.fullName,
+              photoUrl: effectivePhotoUrl(m),
               color: m.color,
             })),
             counselorTitle: slot.counselor.title,

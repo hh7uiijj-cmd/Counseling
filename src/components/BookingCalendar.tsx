@@ -26,6 +26,7 @@ type DaySummary = {
 type SlotMember = {
   id: string;
   name: string;
+  fullName: string | null;
   title: string | null;
   photoUrl: string | null;
   color: string;
@@ -50,14 +51,14 @@ function MemberAvatar({ member }: { member: SlotMember }) {
       <img
         src={member.photoUrl}
         alt={member.name}
-        className="h-10 w-10 shrink-0 rounded-full object-cover"
+        className="h-12 w-12 shrink-0 rounded-full object-cover"
       />
     );
   }
   return (
     <span
       aria-hidden
-      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white"
+      className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white"
       style={{ backgroundColor: member.color }}
     >
       {member.name.trim().charAt(0)}
@@ -278,7 +279,9 @@ export default function BookingCalendar() {
                           <div key={m.id} className="flex items-center gap-2">
                             <MemberAvatar member={m} />
                             <div>
-                              <p className="text-sm">{m.name}</p>
+                              <p className="text-sm">
+                                {m.fullName ? `${m.fullName} (${m.name})` : m.name}
+                              </p>
                               {m.title && (
                                 <p className="text-xs text-black/50 dark:text-white/65">{m.title}</p>
                               )}

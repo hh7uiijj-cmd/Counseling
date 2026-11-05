@@ -36,7 +36,7 @@ type Swap = {
   targetName: string;
 };
 type MeData = {
-  counselor: { id: string; name: string };
+  counselor: { id: string; name: string; fullName: string | null; photoUrl: string | null };
   settings: { maxShiftsPerPerson: number; changeCutoffHours: number };
   myCount: number;
   myShifts: Shift[];
@@ -54,6 +54,103 @@ type Phase =
 
 const timeRange = (s: Shift) => `${s.startTime}-${s.endTime} น.`;
 
+/** Shrink a chosen picture to a ~480px square-ish JPEG data URL so uploads stay small. */
+async function resizeImage(file: File, max = 480): Promise<string> {
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, max / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", 0.85);
+}
+
+type ProfileValues = { nickname: string; fullName: string; photo?: string };
+
+/** Nickname + full name + photo. Used for first sign-up and for editing later. */
+function ProfileForm({
+  initial,
+  currentPhotoUrl,
+  submitLabel,
+  busy,
+  onSubmit,
+}: {
+  initial: { nickname: string; fullName: string };
+  currentPhotoUrl: string | null;
+  submitLabel: string;
+  busy: boolean;
+  onSubmit: (v: ProfileValues) => void;
+}) {
+  const [nickname, setNickname] = useState(initial.nickname);
+  const [fullName, setFullName] = useState(initial.fullName);
+  const [photo, setPhoto] = useState<string | undefined>();
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const preview = photo ?? currentPhotoUrl;
+
+  async function pick(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPhotoError(null);
+    try {
+      setPhoto(await resizeImage(file));
+    } catch {
+      setPhotoError("อ่านรูปนี้ไม่ได้ กรุณาเลือกรูปอื่น");
+    }
+  }
+
+  return (
+    <form
+      className="flex flex-col gap-3"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSubmit({ nickname: nickname.trim(), fullName: fullName.trim(), photo });
+      }}
+    >
+      <div className="flex items-center gap-3">
+        {preview ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={preview} alt="" className="h-20 w-20 rounded-full object-cover" />
+        ) : (
+          <span className="flex h-20 w-20 items-center justify-center rounded-full bg-black/10 text-xs text-black/50 dark:bg-white/10 dark:text-white/60">
+            ยังไม่มีรูป
+          </span>
+        )}
+        <label className="btn btn-secondary cursor-pointer text-sm">
+          {preview ? "เปลี่ยนรูป" : "อัปโหลดรูป"}
+          <input type="file" accept="image/*" onChange={pick} className="hidden" />
+        </label>
+      </div>
+      {photoError && <p className="text-sm text-red-600 dark:text-red-400">{photoError}</p>}
+      <label className="text-sm">
+        ชื่อเล่น *
+        <input
+          required
+          maxLength={40}
+          value={nickname}
+          onChange={(e) => setNickname(e.target.value)}
+          className="mt-1 block w-full field"
+        />
+      </label>
+      <label className="text-sm">
+        ชื่อจริง (ชื่อ-นามสกุล) *
+        <input
+          required
+          maxLength={100}
+          value={fullName}
+          onChange={(e) => setFullName(e.target.value)}
+          className="mt-1 block w-full field"
+        />
+      </label>
+      <p className="text-xs text-black/60 dark:text-white/70">
+        ผู้มาขอรับคำปรึกษาจะเห็นรูป ชื่อจริง และชื่อเล่นของคุณตอนเลือกเวลา
+      </p>
+      <button type="submit" disabled={busy || !nickname.trim() || !fullName.trim()} className="btn btn-primary">
+        {submitLabel}
+      </button>
+    </form>
+  );
+}
+
 export default function MeApp({ liffId }: { liffId: string }) {
   const [sdkReady, setSdkReady] = useState(false);
   const [phase, setPhase] = useState<Phase>({ name: "loading" });
@@ -64,6 +161,7 @@ export default function MeApp({ liffId }: { liffId: string }) {
   const [swapFrom, setSwapFrom] = useState<string | null>(null);
   const [swapTo, setSwapTo] = useState("");
   const [linkChoice, setLinkChoice] = useState("");
+  const [editingProfile, setEditingProfile] = useState(false);
 
   const loadData = useCallback(async () => {
     const res = await fetch("/api/me", { cache: "no-store" });
@@ -149,6 +247,34 @@ export default function MeApp({ liffId }: { liffId: string }) {
     setPhase({ name: "ready" });
   }
 
+  async function handleRegister(v: ProfileValues) {
+    if (!idToken) return;
+    setBusy(true);
+    setNotice(null);
+    const res = await fetch("/api/me/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idToken, nickname: v.nickname, fullName: v.fullName, photo: v.photo }),
+    });
+    const body = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) {
+      setNotice({ ok: false, text: body.message || "ลงทะเบียนไม่สำเร็จ กรุณาลองใหม่" });
+      return;
+    }
+    await loadData();
+    setPhase({ name: "ready" });
+  }
+
+  async function handleSaveProfile(v: ProfileValues) {
+    const ok = await call(
+      "/api/me/profile",
+      { method: "PUT", body: JSON.stringify(v) },
+      "บันทึกข้อมูลแล้ว"
+    );
+    if (ok) setEditingProfile(false);
+  }
+
   const claim = (s: Shift) =>
     call(`/api/me/shifts/${s.id}`, { method: "POST" }, `ลงเวร ${s.dateLabel} ${timeRange(s)} แล้ว`);
 
@@ -206,30 +332,44 @@ export default function MeApp({ liffId }: { liffId: string }) {
 
       {phase.name === "link" && (
         <div className={`${card} flex flex-col gap-3`}>
-          <p className="text-sm">
-            ครั้งแรกที่เข้าใช้งาน กรุณาเลือกชื่อของคุณ ระบบจะผูกกับบัญชี LINE นี้ถาวร
-          </p>
-          <select
-            value={linkChoice}
-            onChange={(e) => setLinkChoice(e.target.value)}
-            className="field"
-          >
-            <option value="">-- เลือกชื่อ --</option>
-            {phase.options.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.name}
-              </option>
-            ))}
-          </select>
-          <button
-            onClick={handleLink}
-            disabled={busy || !linkChoice}
-            className="btn btn-primary"
-          >
-            ยืนยัน
-          </button>
+          <p className="text-sm font-medium">ครั้งแรกที่เข้าใช้งาน กรอกข้อมูลของคุณ</p>
+          <ProfileForm
+            initial={{ nickname: "", fullName: "" }}
+            currentPhotoUrl={null}
+            submitLabel="ลงทะเบียน"
+            busy={busy}
+            onSubmit={handleRegister}
+          />
           {notice && !notice.ok && (
             <p className="text-sm text-red-600 dark:text-red-400">{notice.text}</p>
+          )}
+          {phase.options.length > 0 && (
+            <details className="border-t border-black/10 pt-3 dark:border-white/10">
+              <summary className="cursor-pointer text-sm text-black/70 dark:text-white/75">
+                แอดมินกรอกชื่อของฉันไว้แล้ว
+              </summary>
+              <div className="mt-2 flex flex-col gap-3">
+                <select
+                  value={linkChoice}
+                  onChange={(e) => setLinkChoice(e.target.value)}
+                  className="field"
+                >
+                  <option value="">-- เลือกชื่อ --</option>
+                  {phase.options.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={handleLink}
+                  disabled={busy || !linkChoice}
+                  className="btn btn-secondary"
+                >
+                  ผูกกับชื่อนี้
+                </button>
+              </div>
+            </details>
           )}
         </div>
       )}
@@ -237,7 +377,36 @@ export default function MeApp({ liffId }: { liffId: string }) {
       {phase.name === "ready" && data && (
         <>
           <div className={card}>
-            <p className="font-medium">{data.counselor.name}</p>
+            {editingProfile ? (
+              <ProfileForm
+                initial={{ nickname: data.counselor.name, fullName: data.counselor.fullName ?? "" }}
+                currentPhotoUrl={data.counselor.photoUrl}
+                submitLabel="บันทึก"
+                busy={busy}
+                onSubmit={handleSaveProfile}
+              />
+            ) : (
+              <div className="flex items-center gap-3">
+                {data.counselor.photoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={data.counselor.photoUrl} alt="" className="h-14 w-14 rounded-full object-cover" />
+                ) : (
+                  <span className="flex h-14 w-14 items-center justify-center rounded-full bg-black/10 text-xs dark:bg-white/10">
+                    ไม่มีรูป
+                  </span>
+                )}
+                <div className="flex-1">
+                  <p className="font-medium">
+                    {data.counselor.fullName
+                      ? `${data.counselor.fullName} (${data.counselor.name})`
+                      : data.counselor.name}
+                  </p>
+                  <button onClick={() => setEditingProfile(true)} className="btn-link text-xs">
+                    แก้ไขรูป/ชื่อ
+                  </button>
+                </div>
+              </div>
+            )}
             <p className="mt-1 text-sm">
               เวรที่ลงไว้: {data.myCount}
               {data.settings.maxShiftsPerPerson > 0 ? ` / ${data.settings.maxShiftsPerPerson}` : ""} เวร

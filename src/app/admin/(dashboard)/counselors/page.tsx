@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 type Counselor = {
   id: string;
   name: string;
+  fullName: string | null;
+  hasUpload: boolean;
   title: string | null;
   bio: string | null;
   photoUrl: string | null;
@@ -22,6 +24,7 @@ export default function CounselorsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [name, setName] = useState("");
+  const [fullName, setFullName] = useState("");
   const [title, setTitle] = useState("");
   const [color, setColor] = useState("#2563eb");
   const [submitting, setSubmitting] = useState(false);
@@ -61,6 +64,7 @@ export default function CounselorsPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name,
+        fullName: fullName || undefined,
         title: title || undefined,
         photoUrl: photoUrl || undefined,
         color,
@@ -72,6 +76,7 @@ export default function CounselorsPage() {
       return;
     }
     setName("");
+    setFullName("");
     setTitle("");
     setPhotoUrl("");
     load();
@@ -154,11 +159,19 @@ export default function CounselorsPage() {
         className="flex flex-wrap items-end gap-3 rounded-xl border border-black/10 p-4 dark:border-white/10"
       >
         <label className="text-sm">
-          ชื่อ *
+          ชื่อเล่น *
           <input
             required
             value={name}
             onChange={(e) => setName(e.target.value)}
+            className="mt-1 block field"
+          />
+        </label>
+        <label className="text-sm">
+          ชื่อจริง
+          <input
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
             className="mt-1 block field"
           />
         </label>
@@ -231,7 +244,8 @@ export default function CounselorsPage() {
               <tr>
                 <th className="p-2"></th>
                 <th className="p-2">รูป</th>
-                <th className="p-2">ชื่อ</th>
+                <th className="p-2">ชื่อเล่น</th>
+                <th className="p-2">ชื่อจริง</th>
                 <th className="p-2">ตำแหน่ง</th>
                 <th className="p-2" title="ใช้กับโหมดจัดคู่หมุนเวียนอัตโนมัติเท่านั้น (การลงเวรเองไม่ต้องจับคู่)">คู่เวร (ไม่บังคับ)</th>
                 <th className="p-2">จำนวนคิวที่สร้าง</th>
@@ -261,11 +275,11 @@ export default function CounselorsPage() {
                       )}
                       <input
                         key={`${c.id}-${c.photoUrl ?? ""}`}
-                        defaultValue={c.photoUrl ?? ""}
-                        placeholder="ลิงก์รูป"
+                        defaultValue={c.hasUpload ? "" : (c.photoUrl ?? "")}
+                        placeholder={c.hasUpload ? "(อัปโหลดเอง)" : "ลิงก์รูป"}
                         onBlur={(e) => {
                           const value = e.target.value.trim();
-                          if (value !== (c.photoUrl ?? "")) {
+                          if (value !== (c.hasUpload ? "" : (c.photoUrl ?? ""))) {
                             patchCounselor(c, { photoUrl: value || null });
                           }
                         }}
@@ -274,6 +288,7 @@ export default function CounselorsPage() {
                     </div>
                   </td>
                   <td className="p-2">{c.name}</td>
+                  <td className="p-2">{c.fullName || "-"}</td>
                   <td className="p-2">{c.title || "-"}</td>
                   <td className="p-2">
                     <select

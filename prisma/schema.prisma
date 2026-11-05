@@ -64,25 +64,37 @@ model Admin {
 }
 
 model Counselor {
-  id         String     @id @default(cuid())
-  name       String
-  title      String? // e.g. specialty / role, shown to clients
-  bio        String?
-  photoUrl   String?
-  color      String     @default("#2563eb") // used to color-code this counselor on the calendar
-  active     Boolean    @default(true)
-  lineUserId String? // LINE user ID to @-mention in group notifications for this counselor's bookings
+  id             String          @id @default(cuid())
+  name           String
+  title          String? // e.g. specialty / role, shown to clients
+  bio            String?
+  photoUrl       String? // external image link (admin-entered); an uploaded photo (photoUpdatedAt) wins over it
+  fullName       String? // real full name; `name` is the nickname. Both are shown to clients
+  photoUpdatedAt DateTime? // set when an uploaded photo exists (CounselorPhoto); doubles as cache-buster
+  photo          CounselorPhoto?
+  color          String          @default("#2563eb") // used to color-code this counselor on the calendar
+  active         Boolean         @default(true)
+  lineUserId     String? // LINE user ID to @-mention in group notifications for this counselor's bookings
   // Fixed partner for paired shifts (set on both sides of the pair). Slots copy it at creation time.
-  partnerId  String?    @unique
-  partner    Counselor? @relation("CounselorPair", fields: [partnerId], references: [id], onDelete: SetNull)
-  partnerOf  Counselor? @relation("CounselorPair")
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  partnerId      String?         @unique
+  partner        Counselor?      @relation("CounselorPair", fields: [partnerId], references: [id], onDelete: SetNull)
+  partnerOf      Counselor?      @relation("CounselorPair")
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 
   slots        Slot[]        @relation("SlotMain")
   partnerSlots Slot[]        @relation("SlotPartner")
   swapRequests SwapRequest[] @relation("SwapRequester")
   swapTargets  SwapRequest[] @relation("SwapTarget")
+}
+
+/// Uploaded profile photo bytes, kept apart from Counselor so `include: { counselor: true }` never loads them.
+model CounselorPhoto {
+  counselorId String    @id
+  counselor   Counselor @relation(fields: [counselorId], references: [id], onDelete: Cascade)
+  data        Bytes
+  contentType String    @default("image/jpeg")
+  updatedAt   DateTime  @updatedAt
 }
 
 model ClosedDate {
