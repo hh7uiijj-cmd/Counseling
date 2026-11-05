@@ -321,9 +321,11 @@ export default function SlotsPage() {
         </form>
       </section>
 
-      <section className="rounded-xl border border-black/10 p-4 dark:border-white/10">
-        <h2 className="mb-3 font-medium">สร้างคิวว่างรายบุคคล (ใช้คู่ที่จับไว้ของคนนั้นอัตโนมัติ)</h2>
-        <form onSubmit={handleBulkCreate} className="flex flex-col gap-3">
+      <details className="rounded-xl border border-black/10 p-4 dark:border-white/10">
+        <summary className="cursor-pointer font-medium">
+          ขั้นสูง: สร้างคิวรายบุคคล (ไม่ต้องใช้ ถ้าให้ผู้ให้คำปรึกษาลงเวรเอง)
+        </summary>
+        <form onSubmit={handleBulkCreate} className="mt-3 flex flex-col gap-3">
           <div className="flex flex-wrap gap-3">
             <label className="text-sm">
               ผู้ให้คำปรึกษา
@@ -426,7 +428,7 @@ export default function SlotsPage() {
             </button>
           </div>
         </form>
-      </section>
+      </details>
 
       <section className="rounded-xl border border-black/10 p-4 dark:border-white/10">
         <h2 className="mb-3 font-medium">วันหยุด / ปิดทำการ</h2>
@@ -568,14 +570,12 @@ export default function SlotsPage() {
                       {formatDateTime(s.startsAt)}-{formatDateTime(s.endsAt)}
                     </td>
                     <td className="p-2">
-                      {s.counselor ? (
-                        <>
-                          {s.counselor.name}
-                          {s.partner ? ` และ ${s.partner.name}` : " (รออีก 1 คน)"}
-                        </>
-                      ) : (
-                        <span className="text-black/50 dark:text-white/65">ว่าง (รอลงเวร)</span>
-                      )}
+                      <span className="mr-3">
+                        ที่ 1: {s.counselor ? s.counselor.name : <span className="opacity-60">ว่าง</span>}
+                      </span>
+                      <span>
+                        ที่ 2: {s.partner ? s.partner.name : <span className="opacity-60">ว่าง</span>}
+                      </span>
                     </td>
                     <td className="p-2">
                       {s.booking && s.booking.status !== "CANCELLED" ? (

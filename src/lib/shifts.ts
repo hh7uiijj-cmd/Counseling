@@ -1,3 +1,4 @@
+import { effectivePhotoUrl } from "@/lib/photos";
 import { BookingStatus } from "@/generated/prisma/enums";
 import { buildMentionTextMessage, pushMessageToGroup } from "@/lib/line";
 import { SEATS_PER_SHIFT, slotCounselorLabel, slotMembers } from "@/lib/counselors";
@@ -52,7 +53,11 @@ export function toShiftItem(slot: ShiftSlot, cutoffHours: number, now = new Date
     startTime: toTimeKey(slot.startsAt),
     endTime: toTimeKey(slot.endsAt),
     pairLabel: slotCounselorLabel(slot),
-    members: slotMembers(slot).map((m) => ({ id: m.id, name: m.name })),
+    members: slotMembers(slot).map((m) => ({
+      id: m.id,
+      name: m.name,
+      photoUrl: effectivePhotoUrl(m as { id: string; photoUrl?: string | null; photoUpdatedAt?: Date | null }),
+    })),
     seatsOpen: SEATS_PER_SHIFT - seatsTaken(slot),
     hasBooking: hasActiveBooking(slot),
     locked: isLocked(slot, cutoffHours, now),
