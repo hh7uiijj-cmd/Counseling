@@ -69,8 +69,13 @@ export function shiftText(slot: { date: Date; startsAt: Date; endsAt: Date }) {
   return `${thaiDateLabel(dateKey)} ${toTimeKey(slot.startsAt)}-${toTimeKey(slot.endsAt)} น.`;
 }
 
-/** Post a message to the LINE group, tagging whoever has a linked LINE account. Never throws. */
+/**
+ * Automatic shift notices (sign-up, release, swap) are OFF by default: the admin posts to the group
+ * on demand from the "ประกาศลง LINE" page. Set SHIFT_AUTO_NOTIFY=true to turn them back on.
+ * Posts to the LINE group, tagging whoever has a linked LINE account. Never throws.
+ */
 export async function notifyGroup(people: Person[], text: string) {
+  if (process.env.SHIFT_AUTO_NOTIFY !== "true") return;
   try {
     const unique = [...new Map(people.map((p) => [p.id, p])).values()];
     const mentionable = unique.flatMap((p) =>

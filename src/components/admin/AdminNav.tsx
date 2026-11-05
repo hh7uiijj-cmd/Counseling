@@ -9,6 +9,7 @@ const links = [
   { href: "/admin/bookings", label: "การจอง" },
   { href: "/admin/slots", label: "จัดการคิว" },
   { href: "/admin/counselors", label: "ผู้ให้คำปรึกษา" },
+  { href: "/admin/announce", label: "ประกาศลง LINE" },
   { href: "/admin/settings", label: "ตั้งค่า" },
 ];
 
