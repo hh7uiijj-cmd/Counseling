@@ -9,7 +9,11 @@ declare global {
 
 const pool =
   global.__pgPool ??
-  new pg.Pool({ connectionString: process.env.DATABASE_URL });
+  new pg.Pool({
+    connectionString: process.env.DATABASE_URL,
+    // Serverless hosts (Vercel) start many instances; keep each one small.
+    max: Number(process.env.PG_POOL_MAX ?? 5),
+  });
 
 const adapter = new PrismaPg(pool);
 

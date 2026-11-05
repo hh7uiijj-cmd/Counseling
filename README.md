@@ -134,7 +134,22 @@ npm run dev
 - `src/lib/line.ts` — ฟังก์ชันส่ง/รับข้อความ LINE Messaging API และสร้าง Flex Message
 - `prisma/schema.prisma` — โมเดลข้อมูล (Counselor, Slot, Booking, ClosedDate, Admin)
 
-## Deploy บน Railway
+## Deploy บน Supabase + Vercel (ฟรี)
+
+ฐานข้อมูลอยู่ที่ [Supabase](https://supabase.com/) ส่วนเว็บ (Next.js) รันบน [Vercel](https://vercel.com/)
+
+1. **Supabase:** สร้างโปรเจกต์ใหม่ ตั้งรหัสผ่านฐานข้อมูลแล้วจดไว้ จากนั้นกดปุ่ม **Connect** ที่ด้านบน คัดลอกสตริงเชื่อมต่อ 2 แบบ:
+   - **Transaction pooler** (พอร์ต 6543) → ใช้เป็น `DATABASE_URL` ต่อท้ายด้วย `?sslmode=no-verify`
+   - **Session pooler** (พอร์ต 5432) → ใช้เป็น `MIGRATE_DATABASE_URL` ต่อท้ายด้วย `?sslmode=require`
+   (ถ้ารหัสผ่านมีอักขระพิเศษ เช่น `@` `#` ต้อง URL-encode)
+2. **Vercel:** Add New → Project → เลือก repo นี้ (Framework = Next.js ระบบจะใช้สคริปต์ `vercel-build` ที่รัน migration ให้เองก่อน build)
+3. ตั้ง Environment Variables ใน Vercel: `DATABASE_URL`, `MIGRATE_DATABASE_URL`, `SESSION_SECRET`, `APP_BASE_URL` (โดเมนที่ Vercel ให้), `LINE_*`, `LINE_LOGIN_CHANNEL_ID`, `LIFF_ID` (ดูส่วนตั้งค่า LINE ด้านบน) แล้วกด Deploy
+4. สร้างแอดมินคนแรก: ในเครื่องที่มี Node ให้ตั้ง `DATABASE_URL` เป็นสตริงเชื่อมต่อของ Supabase แล้วรัน `npm run db:seed`
+5. ไปแก้ **Endpoint URL** ของ LIFF และ Webhook URL ของ LINE Messaging API ให้เป็นโดเมนใหม่ (`https://<โดเมน>/me` และ `https://<โดเมน>/api/line/webhook`)
+
+> หมายเหตุ: แพลนฟรีของ Supabase จะพักโปรเจกต์ถ้าไม่มีการใช้งานนานหลายวัน ถ้าเว็บเข้าไม่ได้ให้เข้า dashboard แล้วกด Restore
+
+## Deploy บน Railway (ทางเลือกเดิม)
 
 แอปนี้เป็น Next.js server ธรรมดา (ไม่ใช่ static export) รันบน Node.js — ขั้นตอน deploy บน [Railway](https://railway.com/):
 
