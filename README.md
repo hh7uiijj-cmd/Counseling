@@ -142,7 +142,8 @@ npm run dev
    - **Transaction pooler** (พอร์ต 6543) → ใช้เป็น `DATABASE_URL` ต่อท้ายด้วย `?sslmode=no-verify`
    - **Session pooler** (พอร์ต 5432) → ใช้เป็น `MIGRATE_DATABASE_URL` ต่อท้ายด้วย `?sslmode=require`
    (ถ้ารหัสผ่านมีอักขระพิเศษ เช่น `@` `#` ต้อง URL-encode)
-2. **Vercel:** Add New → Project → เลือก repo นี้ (Framework = Next.js ระบบจะใช้สคริปต์ `vercel-build` ที่รัน migration ให้เองก่อน build)
+2. **Vercel:** Add New → Project → เลือก repo นี้ (Framework = Next.js สคริปต์ `vercel-build` รันแค่ `next build` ไม่แตะฐานข้อมูล)
+   - **สร้างตาราง:** ถ้าเครื่อง build ต่อ Supabase ตรงๆ ไม่ได้ ให้วางไฟล์ `prisma/migrations/*/migration.sql` ตามลำดับชื่อโฟลเดอร์ใน SQL Editor ของ Supabase หรือรัน `npm run db:migrate` จากเครื่องที่ตั้ง `MIGRATE_DATABASE_URL` ไว้
 3. ตั้ง Environment Variables ใน Vercel: `DATABASE_URL`, `MIGRATE_DATABASE_URL`, `SESSION_SECRET`, `APP_BASE_URL` (โดเมนที่ Vercel ให้), `LINE_*`, `LINE_LOGIN_CHANNEL_ID`, `LIFF_ID` (ดูส่วนตั้งค่า LINE ด้านบน) แล้วกด Deploy
 4. สร้างแอดมินคนแรก: ในเครื่องที่มี Node ให้ตั้ง `DATABASE_URL` เป็นสตริงเชื่อมต่อของ Supabase แล้วรัน `npm run db:seed`
 5. ไปแก้ **Endpoint URL** ของ LIFF และ Webhook URL ของ LINE Messaging API ให้เป็นโดเมนใหม่ (`https://<โดเมน>/me` และ `https://<โดเมน>/api/line/webhook`)
