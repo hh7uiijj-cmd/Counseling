@@ -1,12 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import {
-  buildMonthGrid,
-  THAI_MONTHS,
-  THAI_WEEKDAYS_SHORT,
-  todayKey,
-} from "@/lib/calendarGrid";
+import { useEffect, useState } from "react";
+import { todayKey } from "@/lib/calendarGrid";
 import {
   GENDER_OPTIONS,
   YEAR_LEVEL_OPTIONS,
@@ -77,63 +72,65 @@ function thaiDateLabelLocal(dateKeyStr: string) {
   }).format(date);
 }
 
+const UPCOMING_FRIDAYS = 8;
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+const keyOf = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+
+/** The next `count` Fridays starting from today (today counts if it is a Friday). */
+function upcomingFridays(count: number) {
+  const out: string[] = [];
+  const d = new Date();
+  d.setHours(12, 0, 0, 0);
+  while (out.length < count) {
+    if (d.getDay() === 5) out.push(keyOf(d));
+    d.setDate(d.getDate() + 1);
+  }
+  return out;
+}
+
 export default function BookingCalendar() {
-  const now = new Date();
-  const [year, setYear] = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth() + 1); // 1-12
+  const [fridays] = useState(() => upcomingFridays(UPCOMING_FRIDAYS));
   const [days, setDays] = useState<Record<string, DaySummary>>({});
-  const [loadingMonth, setLoadingMonth] = useState(true);
+  const [loadingDays, setLoadingDays] = useState(true);
 
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [slots, setSlots] = useState<SlotItem[] | null>(null);
   const [dateClosed, setDateClosed] = useState(false);
   const [loadingDay, setLoadingDay] = useState(false);
+  const [openSlotId, setOpenSlotId] = useState<string | null>(null);
 
   const [bookingSlot, setBookingSlot] = useState<SlotItem | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const grid = useMemo(() => buildMonthGrid(year, month), [year, month]);
-  const today = todayKey();
-
+  // Summaries (open seats per Friday) for the months the listed Fridays fall in.
   useEffect(() => {
     let cancelled = false;
-    const monthStr = `${year}-${String(month).padStart(2, "0")}`;
-    fetch(`/api/availability?month=${monthStr}`)
-      .then((res) => res.json())
-      .then((data) => {
+    const months = [...new Set(fridays.map((f) => f.slice(0, 7)))];
+    Promise.all(
+      months.map((m) =>
+        fetch(`/api/availability?month=${m}`)
+          .then((res) => res.json())
+          .then((data) => data.days as DaySummary[])
+          .catch(() => [] as DaySummary[])
+      )
+    )
+      .then((lists) => {
         if (cancelled) return;
         const map: Record<string, DaySummary> = {};
-        for (const d of data.days as DaySummary[]) map[d.date] = d;
+        for (const d of lists.flat()) map[d.date] = d;
         setDays(map);
       })
-      .finally(() => !cancelled && setLoadingMonth(false));
+      .finally(() => !cancelled && setLoadingDays(false));
     return () => {
       cancelled = true;
     };
-  }, [year, month]);
-
-  function goPrevMonth() {
-    setLoadingMonth(true);
-    if (month === 1) {
-      setMonth(12);
-      setYear((y) => y - 1);
-    } else {
-      setMonth((m) => m - 1);
-    }
-  }
-
-  function goNextMonth() {
-    setLoadingMonth(true);
-    if (month === 12) {
-      setMonth(1);
-      setYear((y) => y + 1);
-    } else {
-      setMonth((m) => m + 1);
-    }
-  }
+  }, [fridays, refreshKey]);
 
   function selectDate(dateKeyStr: string) {
     setSelectedDate(dateKeyStr);
     setSlots(null);
+    setOpenSlotId(null);
     setLoadingDay(true);
     fetch(`/api/availability/${dateKeyStr}`)
       .then((res) => res.json())
@@ -145,107 +142,64 @@ export default function BookingCalendar() {
   }
 
   return (
-    <div className="grid gap-4 sm:gap-6 md:grid-cols-[1fr_360px]">
+    <div className="grid gap-4 sm:gap-6 md:grid-cols-[1fr_380px]">
       <div className="card p-3 sm:p-4">
-        <div className="mb-4 flex items-center justify-between">
-          <button
-            onClick={goPrevMonth}
-            className="btn btn-ghost h-9 w-9 p-0"
-            aria-label="เดือนก่อนหน้า"
-          >
-            ◀
-          </button>
-          <h2 className="text-base font-semibold text-brand-blue-dark sm:text-lg">
-            {THAI_MONTHS[month - 1]} {year + 543}
-          </h2>
-          <button
-            onClick={goNextMonth}
-            className="btn btn-ghost h-9 w-9 p-0"
-            aria-label="เดือนถัดไป"
-          >
-            ▶
-          </button>
-        </div>
+        <h2 className="mb-1 text-base font-semibold text-brand-blue-dark sm:text-lg">
+          เลือกวันศุกร์ที่ต้องการ
+        </h2>
+        <p className="mb-3 text-xs text-black/60 dark:text-white/70">
+          โครงการเปิดให้คำปรึกษาทุกวันศุกร์ เวลา 09:00-12:00 และ 13:00-16:00 น.
+        </p>
 
-        <div className="grid grid-cols-7 gap-0.5 text-center text-[11px] font-medium text-black/50 sm:gap-1 sm:text-xs dark:text-white/50">
-          {THAI_WEEKDAYS_SHORT.map((w) => (
-            <div key={w} className="py-1">
-              {w}
-            </div>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
-          {grid.map((cell) => {
-            const summary = days[cell.key];
-            const isPast = cell.key < today;
-            const isSelected = cell.key === selectedDate;
-            const isClosed = summary?.closed;
-            const hasAvailability = summary && summary.availableSlots > 0 && !isClosed;
-
+        <ul className="flex flex-col gap-2">
+          {fridays.map((key) => {
+            const summary = days[key];
+            const isSelected = key === selectedDate;
+            const closed = summary?.closed;
+            const open = summary && !closed ? summary.availableSlots : 0;
             return (
-              <button
-                key={cell.key}
-                disabled={!cell.inMonth || isPast}
-                onClick={() => selectDate(cell.key)}
-                className={[
-                  "flex h-12 flex-col items-center justify-start rounded-lg border p-1 text-xs transition sm:h-16 sm:rounded-xl sm:text-sm",
-                  !cell.inMonth ? "opacity-30" : "",
-                  isPast ? "cursor-not-allowed opacity-40" : "cursor-pointer hover:border-brand-blue active:scale-95",
-                  isSelected
-                    ? "border-brand-pink ring-2 ring-brand-pink-light"
-                    : "border-black/10 dark:border-white/10",
-                  cell.key === today ? "font-bold text-brand-blue-dark" : "",
-                ].join(" ")}
-              >
-                <span>{cell.day}</span>
-                {cell.inMonth && !isPast && (
-                  <span
-                    className={[
-                      "mt-1 h-2 w-2 rounded-full",
-                      isClosed
-                        ? "bg-gray-400"
-                        : hasAvailability
-                        ? "bg-green-500"
-                        : summary
-                        ? "bg-red-400"
-                        : "bg-transparent",
-                    ].join(" ")}
-                    title={
-                      isClosed
-                        ? "ปิดทำการ"
-                        : hasAvailability
-                        ? "มีคิวว่าง"
-                        : "ไม่มีคิวว่าง"
-                    }
-                  />
-                )}
-              </button>
+              <li key={key}>
+                <button
+                  onClick={() => selectDate(key)}
+                  className={[
+                    "flex w-full items-center justify-between gap-3 rounded-xl border p-3 text-left transition hover:border-brand-blue active:scale-[0.99]",
+                    isSelected
+                      ? "border-brand-pink ring-2 ring-brand-pink-light"
+                      : "border-black/10 dark:border-white/10",
+                  ].join(" ")}
+                >
+                  <span className="font-medium">
+                    {key === todayKey() ? "วันนี้ · " : ""}
+                    {thaiDateLabelLocal(key)}
+                  </span>
+                  {closed ? (
+                    <span className="shrink-0 rounded-full bg-gray-200 px-2.5 py-1 text-xs text-gray-600 dark:bg-white/10 dark:text-white/70">
+                      ปิดทำการ
+                    </span>
+                  ) : !summary ? (
+                    <span className="shrink-0 text-xs text-black/40 dark:text-white/60">
+                      {loadingDays ? "กำลังโหลด..." : "ยังไม่เปิดให้จอง"}
+                    </span>
+                  ) : open > 0 ? (
+                    <span className="shrink-0 rounded-full bg-green-100 px-2.5 py-1 text-xs text-green-800">
+                      ว่าง {open} คิว
+                    </span>
+                  ) : (
+                    <span className="shrink-0 rounded-full bg-red-100 px-2.5 py-1 text-xs text-red-700">
+                      เต็มแล้ว
+                    </span>
+                  )}
+                </button>
+              </li>
             );
           })}
-        </div>
-
-        {loadingMonth && (
-          <p className="mt-2 text-xs text-black/40 dark:text-white/60">กำลังโหลดข้อมูล...</p>
-        )}
-
-        <div className="mt-4 flex flex-wrap gap-4 text-xs text-black/60 dark:text-white/75">
-          <span className="flex items-center gap-1">
-            <span className="h-2 w-2 rounded-full bg-green-500" /> มีคิวว่าง
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="h-2 w-2 rounded-full bg-red-400" /> เต็มแล้ว
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="h-2 w-2 rounded-full bg-gray-400" /> ปิดทำการ
-          </span>
-        </div>
+        </ul>
       </div>
 
       <div className="card p-3 sm:p-4">
         {!selectedDate && (
           <p className="text-sm text-black/50 dark:text-white/65">
-            เลือกวันที่ทางซ้ายเพื่อดูผู้ให้คำปรึกษาและเวลาว่าง
+            เลือกวันศุกร์ทางซ้ายเพื่อดูช่วงเวลาที่ว่าง
           </p>
         )}
 
@@ -265,45 +219,73 @@ export default function BookingCalendar() {
 
             {!loadingDay && !dateClosed && slots && slots.length > 0 && (
               <ul className="flex flex-col gap-2">
-                {slots.map((slot) => (
-                  <li
-                    key={slot.id}
-                    className="flex items-center justify-between rounded-lg border border-black/10 p-2 text-sm dark:border-white/10"
-                  >
-                    <div className="flex flex-col gap-1.5">
-                      <p className="font-medium">
-                        {slot.startTime} - {slot.endTime}
-                      </p>
-                      <div className="flex flex-wrap items-center gap-3">
-                        {slot.members.map((m) => (
-                          <div key={m.id} className="flex items-center gap-2">
-                            <MemberAvatar member={m} />
-                            <div>
-                              <p className="text-sm">
-                                {m.fullName ? `${m.fullName} (${m.name})` : m.name}
-                              </p>
-                              {m.title && (
-                                <p className="text-xs text-black/50 dark:text-white/65">{m.title}</p>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    {slot.available ? (
+                {slots.map((slot) => {
+                  const expanded = openSlotId === slot.id;
+                  return (
+                    <li
+                      key={slot.id}
+                      className="rounded-lg border border-black/10 text-sm dark:border-white/10"
+                    >
                       <button
-                        onClick={() => setBookingSlot(slot)}
-                        className="btn btn-primary btn-sm"
+                        onClick={() => setOpenSlotId(expanded ? null : slot.id)}
+                        aria-expanded={expanded}
+                        className="flex w-full items-center justify-between gap-2 p-2.5 text-left"
                       >
-                        จองคิว
+                        <span className="font-medium">
+                          {slot.startTime} - {slot.endTime} น.
+                        </span>
+                        <span className="flex items-center gap-2">
+                          {slot.available ? (
+                            <span className="rounded-full bg-green-100 px-2.5 py-1 text-xs text-green-800">
+                              ว่าง
+                            </span>
+                          ) : (
+                            <span className="rounded-full bg-gray-200 px-2.5 py-1 text-xs text-gray-600 dark:bg-white/10 dark:text-white/70">
+                              ไม่ว่าง
+                            </span>
+                          )}
+                          <span aria-hidden className="text-xs text-black/40 dark:text-white/50">
+                            {expanded ? "▲" : "▼"}
+                          </span>
+                        </span>
                       </button>
-                    ) : (
-                      <span className="rounded-full bg-gray-200 px-3 py-1.5 text-xs text-gray-500 dark:bg-white/10">
-                        ไม่ว่าง
-                      </span>
-                    )}
-                  </li>
-                ))}
+
+                      {expanded && (
+                        <div className="flex flex-col gap-3 border-t border-black/10 p-2.5 dark:border-white/10">
+                          <p className="text-xs text-black/60 dark:text-white/70">ผู้ให้คำปรึกษาในช่วงเวลานี้</p>
+                          <div className="flex flex-col gap-2.5">
+                            {slot.members.map((m) => (
+                              <div key={m.id} className="flex items-center gap-3">
+                                <MemberAvatar member={m} />
+                                <div>
+                                  <p className="font-medium">{m.fullName || m.name}</p>
+                                  {m.fullName && (
+                                    <p className="text-xs text-black/60 dark:text-white/70">
+                                      ชื่อเล่น: {m.name}
+                                    </p>
+                                  )}
+                                  {m.title && (
+                                    <p className="text-xs text-black/50 dark:text-white/65">{m.title}</p>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          {slot.available ? (
+                            <button
+                              onClick={() => setBookingSlot(slot)}
+                              className="btn btn-primary btn-sm self-start"
+                            >
+                              จองคิวนี้
+                            </button>
+                          ) : (
+                            <p className="text-xs text-gray-500">ช่วงเวลานี้มีผู้จองแล้ว</p>
+                          )}
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>
@@ -318,6 +300,7 @@ export default function BookingCalendar() {
           onSuccess={() => {
             setBookingSlot(null);
             selectDate(selectedDate);
+            setRefreshKey((k) => k + 1);
           }}
         />
       )}
