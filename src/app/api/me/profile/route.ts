@@ -3,10 +3,12 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getSessionCounselor, unauthorized } from "@/lib/counselorSession";
 import { parsePhotoDataUrl } from "@/lib/photos";
+import { DEFAULT_COUNSELOR_TITLE } from "@/lib/counselors";
 
 const schema = z.object({
   nickname: z.string().trim().min(1).max(40),
   fullName: z.string().trim().min(1).max(100),
+  title: z.string().trim().min(1).max(100).default(DEFAULT_COUNSELOR_TITLE),
   photo: z.string().max(700_000).optional(), // omit = keep current photo
 });
 
@@ -21,7 +23,7 @@ export async function PUT(request: NextRequest) {
       { status: 400 }
     );
   }
-  const { nickname, fullName, photo } = parsed.data;
+  const { nickname, fullName, title, photo } = parsed.data;
 
   const dup = await prisma.counselor.findFirst({
     where: { name: { equals: nickname, mode: "insensitive" }, id: { not: me.id } },
@@ -43,7 +45,7 @@ export async function PUT(request: NextRequest) {
   await prisma.$transaction(async (tx) => {
     await tx.counselor.update({
       where: { id: me.id },
-      data: { name: nickname, fullName, ...(decoded ? { photoUpdatedAt: new Date() } : {}) },
+      data: { name: nickname, fullName, title, ...(decoded ? { photoUpdatedAt: new Date() } : {}) },
     });
     if (decoded) {
       const data = new Uint8Array(decoded.data);

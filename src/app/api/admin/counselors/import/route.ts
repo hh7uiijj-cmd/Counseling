@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { DEFAULT_COUNSELOR_TITLE } from "@/lib/counselors";
 
 const importSchema = z.object({
-  // One counselor per line: ชื่อเล่น[,ชื่อจริง[,ลิงก์รูป]]
+  // One counselor per line: ชื่อเล่น[,ชื่อจริง]  (photos are uploaded afterwards)
   text: z.string().min(1).max(100_000),
 });
 
@@ -19,8 +20,8 @@ export async function POST(request: NextRequest) {
     .map((line) => line.trim())
     .filter(Boolean)
     .map((line) => {
-      const [name, fullName, photoUrl] = line.split(",").map((cell) => cell.trim());
-      return { name, fullName: fullName || null, photoUrl: photoUrl || null };
+      const [name, fullName] = line.split(",").map((cell) => cell.trim());
+      return { name, fullName: fullName || null, title: DEFAULT_COUNSELOR_TITLE };
     })
     .filter((row) => row.name);
 
