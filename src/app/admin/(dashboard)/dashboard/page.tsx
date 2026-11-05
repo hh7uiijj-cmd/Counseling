@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { thaiDateLabel, toDateKey, toTimeKey } from "@/lib/dates";
 import { BookingStatus } from "@/generated/prisma/enums";
 import Link from "next/link";
+import { slotCounselorLabel } from "@/lib/counselors";
 import StatusBadge from "@/components/admin/StatusBadge";
 
 export default async function DashboardPage() {
@@ -16,7 +17,7 @@ export default async function DashboardPage() {
         status: { in: [BookingStatus.PENDING, BookingStatus.CONFIRMED] },
         slot: { startsAt: { gte: now, lte: in7Days } },
       },
-      include: { slot: { include: { counselor: true } } },
+      include: { slot: { include: { counselor: true, partner: true } } },
       orderBy: { slot: { startsAt: "asc" } },
       take: 20,
     }),
@@ -55,7 +56,7 @@ export default async function DashboardPage() {
                     <td className="p-2">
                       {toTimeKey(b.slot.startsAt)}-{toTimeKey(b.slot.endsAt)}
                     </td>
-                    <td className="p-2">{b.slot.counselor.name}</td>
+                    <td className="p-2">{slotCounselorLabel(b.slot)}</td>
                     <td className="p-2">{b.clientName}</td>
                     <td className="p-2">
                       <StatusBadge status={b.status} />

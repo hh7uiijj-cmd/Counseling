@@ -40,3 +40,24 @@ export async function verifySessionToken(
     return null;
   }
 }
+
+// ---- Counselor (LIFF) sessions: a separate cookie so they never grant admin access ----
+
+export const COUNSELOR_COOKIE_NAME = "counseling_counselor_session";
+
+export async function createCounselorToken(counselorId: string) {
+  return new SignJWT({ counselorId })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("30d")
+    .sign(secretKey());
+}
+
+export async function verifyCounselorToken(token: string): Promise<string | null> {
+  try {
+    const { payload } = await jwtVerify(token, secretKey());
+    return typeof payload.counselorId === "string" ? payload.counselorId : null;
+  } catch {
+    return null;
+  }
+}

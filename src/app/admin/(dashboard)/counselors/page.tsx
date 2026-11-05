@@ -5,8 +5,13 @@ import { useEffect, useState } from "react";
 type Counselor = {
   id: string;
   name: string;
+  fullName: string | null;
+  hasUpload: boolean;
   title: string | null;
   bio: string | null;
+  photoUrl: string | null;
+  partnerId: string | null;
+  partner: { id: string; name: string } | null;
   color: string;
   active: boolean;
   lineUserId: string | null;
@@ -19,9 +24,15 @@ export default function CounselorsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [name, setName] = useState("");
+  const [fullName, setFullName] = useState("");
   const [title, setTitle] = useState("");
   const [color, setColor] = useState("#2563eb");
   const [submitting, setSubmitting] = useState(false);
+
+  const [photoUrl, setPhotoUrl] = useState("");
+  const [importText, setImportText] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [importMessage, setImportMessage] = useState<string | null>(null);
 
   const [lineIdDrafts, setLineIdDrafts] = useState<Record<string, string>>({});
   const [savingLineId, setSavingLineId] = useState<string | null>(null);
@@ -51,7 +62,13 @@ export default function CounselorsPage() {
     const res = await fetch("/api/admin/counselors", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, title: title || undefined, color }),
+      body: JSON.stringify({
+        name,
+        fullName: fullName || undefined,
+        title: title || undefined,
+        photoUrl: photoUrl || undefined,
+        color,
+      }),
     });
     setSubmitting(false);
     if (!res.ok) {
@@ -59,7 +76,45 @@ export default function CounselorsPage() {
       return;
     }
     setName("");
+    setFullName("");
     setTitle("");
+    setPhotoUrl("");
+    load();
+  }
+
+  async function handleImport(e: React.FormEvent) {
+    e.preventDefault();
+    setImporting(true);
+    setImportMessage(null);
+    const res = await fetch("/api/admin/counselors/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: importText }),
+    });
+    setImporting(false);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setImportMessage(data.message || "นำเข้าไม่สำเร็จ กรุณาตรวจสอบข้อมูล");
+      return;
+    }
+    setImportMessage(
+      `นำเข้าสำเร็จ ${data.created} คน` +
+        (data.skipped?.length ? ` (ข้ามชื่อซ้ำ: ${data.skipped.join(", ")})` : "")
+    );
+    setImportText("");
+    load();
+  }
+
+  async function patchCounselor(c: Counselor, patch: Record<string, unknown>) {
+    const res = await fetch(`/api/admin/counselors/${c.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data.message || "บันทึกไม่สำเร็จ");
+    }
     load();
   }
 
@@ -104,7 +159,7 @@ export default function CounselorsPage() {
         className="flex flex-wrap items-end gap-3 rounded-xl border border-black/10 p-4 dark:border-white/10"
       >
         <label className="text-sm">
-          ชื่อ *
+          ชื่อเล่น *
           <input
             required
             value={name}
@@ -113,10 +168,27 @@ export default function CounselorsPage() {
           />
         </label>
         <label className="text-sm">
+          ชื่อจริง
+          <input
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            className="mt-1 block field"
+          />
+        </label>
+        <label className="text-sm">
           ตำแหน่ง/ความเชี่ยวชาญ
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+            className="mt-1 block field"
+          />
+        </label>
+        <label className="text-sm">
+          ลิงก์รูป (ถ้ามี)
+          <input
+            value={photoUrl}
+            onChange={(e) => setPhotoUrl(e.target.value)}
+            placeholder="https://..."
             className="mt-1 block field"
           />
         </label>
@@ -139,6 +211,30 @@ export default function CounselorsPage() {
       </form>
       {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
+      <form
+        onSubmit={handleImport}
+        className="flex flex-col gap-2 rounded-xl border border-black/10 p-4 dark:border-white/10"
+      >
+        <h2 className="font-medium">นำเข้ารายชื่อหลายคนพร้อมกัน</h2>
+        <p className="text-xs text-black/60 dark:text-white/65">
+          วางรายชื่อบรรทัดละ 1 คน รูปแบบ: ชื่อ,ตำแหน่ง/ความถนัด,ลิงก์รูป (ตำแหน่งและลิงก์รูปไม่ใส่ก็ได้)
+          ชื่อที่ซ้ำกับที่มีอยู่จะถูกข้าม
+        </p>
+        <textarea
+          value={importText}
+          onChange={(e) => setImportText(e.target.value)}
+          rows={5}
+          placeholder={"น้องเอ,การเรียน\nน้องบี,ความสัมพันธ์\nน้องซี"}
+          className="field w-full"
+        />
+        {importMessage && <p className="text-sm text-brand-blue-dark">{importMessage}</p>}
+        <div>
+          <button type="submit" disabled={importing || !importText.trim()} className="btn btn-secondary">
+            {importing ? "กำลังนำเข้า..." : "นำเข้ารายชื่อ"}
+          </button>
+        </div>
+      </form>
+
       {loading ? (
         <p className="text-sm text-black/50 dark:text-white/65">กำลังโหลด...</p>
       ) : (
@@ -147,8 +243,11 @@ export default function CounselorsPage() {
             <thead className="bg-black/5 text-left dark:bg-white/10">
               <tr>
                 <th className="p-2"></th>
-                <th className="p-2">ชื่อ</th>
+                <th className="p-2">รูป</th>
+                <th className="p-2">ชื่อเล่น</th>
+                <th className="p-2">ชื่อจริง</th>
                 <th className="p-2">ตำแหน่ง</th>
+                <th className="p-2" title="ใช้กับโหมดจัดคู่หมุนเวียนอัตโนมัติเท่านั้น (การลงเวรเองไม่ต้องจับคู่)">คู่เวร (ไม่บังคับ)</th>
                 <th className="p-2">จำนวนคิวที่สร้าง</th>
                 <th className="p-2">LINE User ID (สำหรับแท็กชื่อ)</th>
                 <th className="p-2">สถานะ</th>
@@ -164,8 +263,50 @@ export default function CounselorsPage() {
                       style={{ backgroundColor: c.color }}
                     />
                   </td>
+                  <td className="p-2">
+                    <div className="flex items-center gap-2">
+                      {c.photoUrl && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={c.photoUrl}
+                          alt={c.name}
+                          className="h-8 w-8 rounded-full object-cover"
+                        />
+                      )}
+                      <input
+                        key={`${c.id}-${c.photoUrl ?? ""}`}
+                        defaultValue={c.hasUpload ? "" : (c.photoUrl ?? "")}
+                        placeholder={c.hasUpload ? "(อัปโหลดเอง)" : "ลิงก์รูป"}
+                        onBlur={(e) => {
+                          const value = e.target.value.trim();
+                          if (value !== (c.hasUpload ? "" : (c.photoUrl ?? ""))) {
+                            patchCounselor(c, { photoUrl: value || null });
+                          }
+                        }}
+                        className="field w-32 text-xs"
+                      />
+                    </div>
+                  </td>
                   <td className="p-2">{c.name}</td>
+                  <td className="p-2">{c.fullName || "-"}</td>
                   <td className="p-2">{c.title || "-"}</td>
+                  <td className="p-2">
+                    <select
+                      value={c.partnerId ?? ""}
+                      onChange={(e) => patchCounselor(c, { partnerId: e.target.value || null })}
+                      className="field text-xs"
+                    >
+                      <option value="">ไม่มีคู่</option>
+                      {counselors
+                        .filter((o) => o.id !== c.id)
+                        .map((o) => (
+                          <option key={o.id} value={o.id}>
+                            {o.name}
+                            {o.partnerId && o.partnerId !== c.id ? " (มีคู่แล้ว)" : ""}
+                          </option>
+                        ))}
+                    </select>
+                  </td>
                   <td className="p-2">{c._count.slots}</td>
                   <td className="p-2">
                     <div className="flex items-center gap-2">

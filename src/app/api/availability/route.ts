@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { dateOnly, toDateKey } from "@/lib/dates";
+import { slotIsActive, slotMembers } from "@/lib/counselors";
 import { BookingStatus } from "@/generated/prisma/enums";
 
 export async function GET(request: NextRequest) {
@@ -24,6 +25,7 @@ export async function GET(request: NextRequest) {
       where: { date: { gte: rangeStart, lte: rangeEnd } },
       include: {
         counselor: { select: { id: true, name: true, color: true, active: true } },
+        partner: { select: { id: true, name: true, color: true, active: true } },
         booking: { select: { status: true } },
       },
     }),
@@ -45,7 +47,7 @@ export async function GET(request: NextRequest) {
   const days = new Map<string, DaySummary>();
 
   for (const slot of slots) {
-    if (!slot.counselor.active) continue;
+    if (!slotIsActive(slot)) continue;
     const key = toDateKey(slot.date);
     const isAvailable =
       !slot.booking || slot.booking.status === BookingStatus.CANCELLED;
@@ -63,8 +65,8 @@ export async function GET(request: NextRequest) {
     day.totalSlots += 1;
     if (isAvailable) {
       day.availableSlots += 1;
-      if (!day.counselorNames.includes(slot.counselor.name)) {
-        day.counselorNames.push(slot.counselor.name);
+      for (const m of slotMembers(slot)) {
+        if (!day.counselorNames.includes(m.name)) day.counselorNames.push(m.name);
       }
     }
   }

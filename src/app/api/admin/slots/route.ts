@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
   const counselorId = searchParams.get("counselorId") ?? undefined;
 
   const where: Record<string, unknown> = {};
-  if (counselorId) where.counselorId = counselorId;
+  if (counselorId) where.OR = [{ counselorId }, { partnerId: counselorId }];
   if (from || to) {
     where.date = {
       ...(from ? { gte: dateOnly(from) } : {}),
@@ -41,6 +41,7 @@ export async function GET(request: NextRequest) {
     where,
     include: {
       counselor: true,
+      partner: true,
       booking: true,
     },
     orderBy: [{ date: "asc" }, { startsAt: "asc" }],
@@ -49,8 +50,134 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ slots });
 }
 
+const rotationSchema = z
+  .object({
+    mode: z.enum(["rotation", "open"]),
+    startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    daysOfWeek: z.array(z.number().int().min(0).max(6)).min(1),
+    windows: z
+      .array(
+        z.object({
+          startTime: z.string().regex(/^\d{2}:\d{2}$/),
+          endTime: z.string().regex(/^\d{2}:\d{2}$/),
+        })
+      )
+      .min(1),
+    slotDurationMinutes: z.number().int().min(5).max(24 * 60),
+  })
+  .refine((data) => data.startDate <= data.endDate, {
+    message: "startDate must be before or equal to endDate",
+    path: ["endDate"],
+  });
+
+function pad(n: number) {
+  return String(n).padStart(2, "0");
+}
+
+/**
+ * Fill every hour of every chosen weekday with shifts.
+ * - "rotation": assign the next fixed pair to each hour, cycling through all pairs.
+ * - "open": create unassigned shifts that pairs claim themselves from the LIFF page.
+ */
+async function createRotation(body: unknown) {
+  const parsed = rotationSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "invalid_input", issues: parsed.error.issues }, { status: 400 });
+  }
+  const { mode, startDate, endDate, daysOfWeek, windows, slotDurationMinutes: duration } = parsed.data;
+
+  const counselors = await prisma.counselor.findMany({
+    where: { active: true, partnerId: { not: null } },
+    orderBy: { createdAt: "asc" },
+  });
+  const byId = new Map(counselors.map((c) => [c.id, c]));
+  const pairs = counselors.flatMap((c) => {
+    const partner = c.partnerId ? byId.get(c.partnerId) : undefined;
+    // Take each pair once, from whichever member was created first.
+    return partner && c.id < partner.id ? [{ a: c, b: partner }] : [];
+  });
+  pairs.sort((x, y) => x.a.createdAt.getTime() - y.a.createdAt.getTime());
+
+  if (mode === "rotation" && pairs.length === 0) {
+    return NextResponse.json(
+      { error: "no_pairs", message: "ยังไม่มีคู่ผู้ให้คำปรึกษา กรุณาจับคู่ในหน้า 'ผู้ให้คำปรึกษา' ก่อน" },
+      { status: 400 }
+    );
+  }
+
+  const [closedDates, existing] = await Promise.all([
+    prisma.closedDate.findMany({
+      where: { date: { gte: dateOnly(startDate), lte: dateOnly(endDate) } },
+    }),
+    prisma.slot.findMany({
+      where: { date: { gte: dateOnly(startDate), lte: dateOnly(endDate) } },
+      select: { startsAt: true },
+    }),
+  ]);
+  const closedSet = new Set(closedDates.map((c) => toDateKey(c.date)));
+  const takenStarts = new Set(existing.map((s) => s.startsAt.getTime()));
+
+  const toCreate: {
+    counselorId: string | null;
+    partnerId: string | null;
+    date: Date;
+    startsAt: Date;
+    endsAt: Date;
+  }[] = [];
+  let next = 0;
+
+  const cursor = dateOnly(startDate);
+  const end = dateOnly(endDate);
+  while (cursor.getTime() <= end.getTime()) {
+    const dateKey = toDateKey(cursor);
+    const dow = new Date(dateKey + "T00:00:00Z").getUTCDay();
+    if (daysOfWeek.includes(dow) && !closedSet.has(dateKey)) {
+      for (const w of windows) {
+        const [sh, sm] = w.startTime.split(":").map(Number);
+        const [eh, em] = w.endTime.split(":").map(Number);
+        const from = sh * 60 + sm;
+        const to = eh * 60 + em;
+        for (let m = from; m + duration <= to; m += duration) {
+          const startsAt = bangkokDateTime(dateKey, `${pad(Math.floor(m / 60))}:${pad(m % 60)}`);
+          const e = m + duration;
+          const endsAt = bangkokDateTime(dateKey, `${pad(Math.floor(e / 60))}:${pad(e % 60)}`);
+          if (takenStarts.has(startsAt.getTime())) continue;
+          const pair = mode === "rotation" ? pairs[next % pairs.length] : null;
+          next += 1;
+          toCreate.push({
+            counselorId: pair ? pair.a.id : null,
+            partnerId: pair ? pair.b.id : null,
+            date: dateOnly(dateKey),
+            startsAt,
+            endsAt,
+          });
+        }
+      }
+    }
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+
+  if (toCreate.length === 0) {
+    return NextResponse.json(
+      { error: "nothing_to_create", message: "ไม่มีคิวที่จะสร้างในช่วงเวลาที่เลือก" },
+      { status: 400 }
+    );
+  }
+
+  const result = await prisma.slot.createMany({ data: toCreate });
+  return NextResponse.json(
+    { created: result.count, pairs: mode === "rotation" ? pairs.length : 0 },
+    { status: 201 }
+  );
+}
+
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null);
+  const mode = body && typeof body === "object" ? (body as { mode?: unknown }).mode : undefined;
+  if (mode === "rotation" || mode === "open") {
+    return createRotation(body);
+  }
   const parsed = bulkCreateSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: "invalid_input", issues: parsed.error.issues }, { status: 400 });
@@ -89,6 +216,7 @@ export async function POST(request: NextRequest) {
 
   const toCreate: {
     counselorId: string;
+    partnerId: string | null;
     date: Date;
     startsAt: Date;
     endsAt: Date;
@@ -116,6 +244,7 @@ export async function POST(request: NextRequest) {
 
         toCreate.push({
           counselorId,
+          partnerId: counselor.partnerId,
           date: dateOnly(dateKey),
           startsAt: bangkokDateTime(dateKey, `${startHH}:${startMM}`),
           endsAt: bangkokDateTime(dateKey, `${endHH}:${endMM}`),

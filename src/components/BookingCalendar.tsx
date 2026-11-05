@@ -23,8 +23,18 @@ type DaySummary = {
   closed: boolean;
 };
 
+type SlotMember = {
+  id: string;
+  name: string;
+  fullName: string | null;
+  title: string | null;
+  photoUrl: string | null;
+  color: string;
+};
+
 type SlotItem = {
   id: string;
+  members: SlotMember[];
   counselorId: string;
   counselorName: string;
   counselorTitle: string | null;
@@ -33,6 +43,28 @@ type SlotItem = {
   endTime: string;
   available: boolean;
 };
+
+function MemberAvatar({ member }: { member: SlotMember }) {
+  if (member.photoUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={member.photoUrl}
+        alt={member.name}
+        className="h-12 w-12 shrink-0 rounded-full object-cover"
+      />
+    );
+  }
+  return (
+    <span
+      aria-hidden
+      className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white"
+      style={{ backgroundColor: member.color }}
+    >
+      {member.name.trim().charAt(0)}
+    </span>
+  );
+}
 
 function thaiDateLabelLocal(dateKeyStr: string) {
   const [y, m, d] = dateKeyStr.split("-").map(Number);
@@ -238,19 +270,24 @@ export default function BookingCalendar() {
                     key={slot.id}
                     className="flex items-center justify-between rounded-lg border border-black/10 p-2 text-sm dark:border-white/10"
                   >
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="h-3 w-3 shrink-0 rounded-full"
-                        style={{ backgroundColor: slot.counselorColor }}
-                      />
-                      <div>
-                        <p className="font-medium">
-                          {slot.startTime} - {slot.endTime}
-                        </p>
-                        <p className="text-xs text-black/50 dark:text-white/65">
-                          {slot.counselorName}
-                          {slot.counselorTitle ? ` · ${slot.counselorTitle}` : ""}
-                        </p>
+                    <div className="flex flex-col gap-1.5">
+                      <p className="font-medium">
+                        {slot.startTime} - {slot.endTime}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-3">
+                        {slot.members.map((m) => (
+                          <div key={m.id} className="flex items-center gap-2">
+                            <MemberAvatar member={m} />
+                            <div>
+                              <p className="text-sm">
+                                {m.fullName ? `${m.fullName} (${m.name})` : m.name}
+                              </p>
+                              {m.title && (
+                                <p className="text-xs text-black/50 dark:text-white/65">{m.title}</p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
                     {slot.available ? (

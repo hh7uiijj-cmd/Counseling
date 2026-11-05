@@ -14,7 +14,8 @@ type Slot = {
   date: string;
   startsAt: string;
   endsAt: string;
-  counselor: { id: string; name: string; color: string };
+  counselor: { id: string; name: string; color: string } | null;
+  partner: { id: string; name: string } | null;
   booking: { status: string; clientName: string } | null;
 };
 type ClosedDate = { id: string; date: string; reason: string | null };
@@ -61,6 +62,18 @@ export default function SlotsPage() {
   const [duration, setDuration] = useState(60);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+
+  const [rotStart, setRotStart] = useState("");
+  const [rotEnd, setRotEnd] = useState("");
+  const [rotDays, setRotDays] = useState<number[]>([5]);
+  const [rotAmStart, setRotAmStart] = useState("09:00");
+  const [rotAmEnd, setRotAmEnd] = useState("12:00");
+  const [rotPmStart, setRotPmStart] = useState("13:00");
+  const [rotPmEnd, setRotPmEnd] = useState("16:00");
+  const [rotDuration, setRotDuration] = useState(60);
+  const [rotMode, setRotMode] = useState<"rotation" | "open">("open");
+  const [rotSubmitting, setRotSubmitting] = useState(false);
+  const [rotMessage, setRotMessage] = useState<string | null>(null);
 
   const [closeDateInput, setCloseDateInput] = useState("");
   const [closeReason, setCloseReason] = useState("");
@@ -115,6 +128,40 @@ export default function SlotsPage() {
     load();
   }
 
+  async function handleRotation(e: React.FormEvent) {
+    e.preventDefault();
+    setRotSubmitting(true);
+    setRotMessage(null);
+    const windows = [
+      { startTime: rotAmStart, endTime: rotAmEnd },
+      { startTime: rotPmStart, endTime: rotPmEnd },
+    ].filter((w) => w.startTime && w.endTime && w.startTime < w.endTime);
+    const res = await fetch("/api/admin/slots", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        mode: rotMode,
+        startDate: rotStart,
+        endDate: rotEnd,
+        daysOfWeek: rotDays,
+        windows,
+        slotDurationMinutes: rotDuration,
+      }),
+    });
+    setRotSubmitting(false);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setRotMessage(data.message || "เกิดข้อผิดพลาด กรุณาตรวจสอบข้อมูล");
+      return;
+    }
+    setRotMessage(
+      rotMode === "rotation"
+        ? `สร้างคิวสำเร็จ ${data.created} คิว (หมุนเวียน ${data.pairs} คู่)`
+        : `สร้างเวรว่างสำเร็จ ${data.created} เวร ให้ผู้ให้คำปรึกษาลงชื่อเองได้ที่หน้าลงเวร`
+    );
+    load();
+  }
+
   async function handleDeleteSlot(id: string) {
     const res = await fetch(`/api/admin/slots/${id}`, { method: "DELETE" });
     if (!res.ok) {
@@ -150,7 +197,108 @@ export default function SlotsPage() {
       <h1 className="text-xl font-semibold">จัดการคิวว่าง</h1>
 
       <section className="rounded-xl border border-black/10 p-4 dark:border-white/10">
-        <h2 className="mb-3 font-medium">สร้างคิวว่าง (รองรับสร้างซ้ำหลายวัน)</h2>
+        <h2 className="mb-1 font-medium">สร้างเวรทั้งช่วง (วันศุกร์ เช้า-บ่าย)</h2>
+        <p className="mb-3 text-xs text-black/60 dark:text-white/65">
+          เลือกว่าจะให้ระบบจัดคู่ให้เอง หรือสร้างเวรว่างให้ผู้ให้คำปรึกษาลงชื่อเอง (เวรละ 2 คน) ข้ามวันปิดทำการและเวลาที่มีคิวอยู่แล้ว
+          เวรจะยังไม่เปิดให้ผู้ขอรับคำปรึกษาจองจนกว่าจะมีผู้ให้คำปรึกษาลงชื่อครบ 2 คน
+        </p>
+        <div className="mb-3 flex flex-wrap gap-4 text-sm">
+          <label className="flex items-center gap-2">
+            <input type="radio" checked={rotMode === "open"} onChange={() => setRotMode("open")} />
+            สร้างเวรว่าง ให้ผู้ให้คำปรึกษาลงเอง (คนละ 1 ที่ รอครบ 2 คนจึงเปิดจอง)
+          </label>
+          <label className="flex items-center gap-2">
+            <input type="radio" checked={rotMode === "rotation"} onChange={() => setRotMode("rotation")} />
+            จัดคู่หมุนเวียนอัตโนมัติ (ใช้คู่ที่จับไว้ในหน้า &quot;ผู้ให้คำปรึกษา&quot;)
+          </label>
+        </div>
+        <form onSubmit={handleRotation} className="flex flex-col gap-3">
+          <div className="flex flex-wrap gap-3">
+            <label className="text-sm">
+              จากวันที่
+              <input
+                required
+                type="date"
+                value={rotStart}
+                onChange={(e) => setRotStart(e.target.value)}
+                className="mt-1 block field"
+              />
+            </label>
+            <label className="text-sm">
+              ถึงวันที่
+              <input
+                required
+                type="date"
+                value={rotEnd}
+                onChange={(e) => setRotEnd(e.target.value)}
+                className="mt-1 block field"
+              />
+            </label>
+            <label className="text-sm">
+              ความยาวแต่ละคิว (นาที)
+              <input
+                type="number"
+                min={5}
+                step={5}
+                value={rotDuration}
+                onChange={(e) => setRotDuration(Number(e.target.value))}
+                className="mt-1 block w-28 field"
+              />
+            </label>
+          </div>
+          <div>
+            <p className="mb-1 text-sm">วันในสัปดาห์</p>
+            <div className="flex gap-2">
+              {WEEKDAYS.map((d) => (
+                <button
+                  type="button"
+                  key={d.value}
+                  onClick={() =>
+                    setRotDays((prev) =>
+                      prev.includes(d.value) ? prev.filter((x) => x !== d.value) : [...prev, d.value]
+                    )
+                  }
+                  className={[
+                    "h-8 w-10 rounded-lg border text-xs",
+                    rotDays.includes(d.value)
+                      ? "border-brand-blue bg-brand-blue text-white"
+                      : "border-black/20 dark:border-white/20",
+                  ].join(" ")}
+                >
+                  {d.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <label className="text-sm">
+              ช่วงเช้า เริ่ม
+              <input type="time" value={rotAmStart} onChange={(e) => setRotAmStart(e.target.value)} className="mt-1 block field" />
+            </label>
+            <label className="text-sm">
+              ช่วงเช้า สิ้นสุด
+              <input type="time" value={rotAmEnd} onChange={(e) => setRotAmEnd(e.target.value)} className="mt-1 block field" />
+            </label>
+            <label className="text-sm">
+              ช่วงบ่าย เริ่ม
+              <input type="time" value={rotPmStart} onChange={(e) => setRotPmStart(e.target.value)} className="mt-1 block field" />
+            </label>
+            <label className="text-sm">
+              ช่วงบ่าย สิ้นสุด
+              <input type="time" value={rotPmEnd} onChange={(e) => setRotPmEnd(e.target.value)} className="mt-1 block field" />
+            </label>
+          </div>
+          {rotMessage && <p className="text-sm text-brand-blue-dark">{rotMessage}</p>}
+          <div>
+            <button type="submit" disabled={rotSubmitting || rotDays.length === 0} className="btn btn-primary">
+              {rotSubmitting ? "กำลังสร้าง..." : rotMode === "open" ? "สร้างเวรว่าง" : "สร้างคิวหมุนเวียน"}
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <section className="rounded-xl border border-black/10 p-4 dark:border-white/10">
+        <h2 className="mb-3 font-medium">สร้างคิวว่างรายบุคคล (ใช้คู่ที่จับไว้ของคนนั้นอัตโนมัติ)</h2>
         <form onSubmit={handleBulkCreate} className="flex flex-col gap-3">
           <div className="flex flex-wrap gap-3">
             <label className="text-sm">
@@ -324,7 +472,16 @@ export default function SlotsPage() {
                     <td className="p-2">
                       {formatDateTime(s.startsAt)}-{formatDateTime(s.endsAt)}
                     </td>
-                    <td className="p-2">{s.counselor.name}</td>
+                    <td className="p-2">
+                      {s.counselor ? (
+                        <>
+                          {s.counselor.name}
+                          {s.partner ? ` และ ${s.partner.name}` : " (รออีก 1 คน)"}
+                        </>
+                      ) : (
+                        <span className="text-black/50 dark:text-white/65">ว่าง (รอลงเวร)</span>
+                      )}
+                    </td>
                     <td className="p-2">
                       {s.booking && s.booking.status !== "CANCELLED" ? (
                         <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">

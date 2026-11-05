@@ -6,6 +6,7 @@ import {
   replyMessage,
   verifyLineSignature,
 } from "@/lib/line";
+import { slotCounselorLabel, slotIsActive } from "@/lib/counselors";
 import { updateBookingStatus } from "@/lib/bookingActions";
 import { BookingStatus } from "@/generated/prisma/enums";
 
@@ -22,11 +23,12 @@ async function handleBookingPostback(data: string, replyToken: string) {
   const bookingId = params.get("bookingId");
   if (!bookingId || (action !== "confirm" && action !== "cancel")) return;
 
-  const targetStatus = action === "confirm" ? BookingStatus.CONFIRMED : BookingStatus.CANCELLED;
+  const targetStatus =
+    action === "confirm" ? BookingStatus.CONFIRMED : BookingStatus.CANCELLED;
 
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
-    include: { slot: { include: { counselor: true } } },
+    include: { slot: { include: { counselor: true, partner: true } } },
   });
 
   if (!booking) {
@@ -83,25 +85,89 @@ async function handleScheduleRequest(dateKey: string, replyToken: string) {
       counselor: { active: true },
     },
     include: {
-      counselor: { select: { name: true, color: true } },
+      counselor: { select: { name: true, color: true, active: true } },
+      partner: { select: { name: true, active: true } },
       booking: { select: { status: true, clientName: true } },
     },
     orderBy: { startsAt: "asc" },
   });
 
-  const items = slots.map((slot) => ({
-    counselorName: slot.counselor.name,
-    counselorColor: slot.counselor.color,
-    startTime: toTimeKey(slot.startsAt),
-    endTime: toTimeKey(slot.endsAt),
-    status: (!slot.booking || slot.booking.status === BookingStatus.CANCELLED
-      ? "available"
-      : "booked") as "available" | "booked",
-    clientName: slot.booking?.clientName,
-  }));
+  const items = slots.flatMap((slot) =>
+    !slot.counselor || !slotIsActive(slot)
+      ? []
+      : [
+          {
+            counselorName: slotCounselorLabel(slot),
+            counselorColor: slot.counselor.color,
+            startTime: toTimeKey(slot.startsAt),
+            endTime: toTimeKey(slot.endsAt),
+            status: (!slot.booking ||
+            slot.booking.status === BookingStatus.CANCELLED
+              ? "available"
+              : "booked") as "available" | "booked",
+            clientName: slot.booking?.clientName,
+          },
+        ],
+  );
 
   const message = buildScheduleFlexMessage({ dateKey, items });
   await replyMessage(replyToken, [message]);
+}
+
+/** "ลงทะเบียน <ชื่อ>" in the group links the sender's LINE user ID to the counselor with that name. */
+async function handleRegister(
+  name: string,
+  userId: string | undefined,
+  replyToken: string,
+) {
+  if (!userId) {
+    await replyMessage(replyToken, [
+      {
+        type: "text",
+        text: "ไม่พบ LINE User ID ของคุณ กรุณาเพิ่มบอทเป็นเพื่อนก่อนแล้วลองอีกครั้ง",
+      },
+    ]);
+    return;
+  }
+
+  const matches = await prisma.counselor.findMany({
+    where: { name: { equals: name, mode: "insensitive" } },
+  });
+
+  if (matches.length !== 1) {
+    await replyMessage(replyToken, [
+      {
+        type: "text",
+        text:
+          matches.length === 0
+            ? `ไม่พบผู้ให้คำปรึกษาชื่อ "${name}" กรุณาพิมพ์ชื่อให้ตรงกับที่แอดมินบันทึกไว้`
+            : `พบชื่อ "${name}" ซ้ำกันหลายคน กรุณาแจ้งแอดมินให้ผูกบัญชีให้`,
+      },
+    ]);
+    return;
+  }
+
+  const counselor = matches[0];
+  if (counselor.lineUserId && counselor.lineUserId !== userId) {
+    await replyMessage(replyToken, [
+      {
+        type: "text",
+        text: `"${counselor.name}" ผูกบัญชี LINE ไว้แล้ว หากต้องการเปลี่ยนกรุณาแจ้งแอดมิน`,
+      },
+    ]);
+    return;
+  }
+
+  await prisma.counselor.update({
+    where: { id: counselor.id },
+    data: { lineUserId: userId },
+  });
+  await replyMessage(replyToken, [
+    {
+      type: "text",
+      text: `ผูกบัญชี LINE ของคุณกับ "${counselor.name}" เรียบร้อยแล้ว ✅ ต่อไปบอทจะแท็กชื่อคุณเมื่อมีคิวใหม่`,
+    },
+  ]);
 }
 
 export async function POST(request: NextRequest) {
@@ -122,7 +188,10 @@ export async function POST(request: NextRequest) {
 
       if (event.type === "postback") {
         try {
-          await handleBookingPostback(event.postback.data as string, event.replyToken);
+          await handleBookingPostback(
+            event.postback.data as string,
+            event.replyToken,
+          );
         } catch (err) {
           console.error("Failed to handle LINE postback", err);
         }
@@ -132,10 +201,17 @@ export async function POST(request: NextRequest) {
       if (event.type !== "message" || event.message?.type !== "text") return;
       const text = (event.message.text as string).trim();
 
-      if (["รหัสกลุ่ม", "groupid", "group id", "รหัสห้อง", "id"].includes(text.toLowerCase())) {
+      if (
+        ["รหัสกลุ่ม", "groupid", "group id", "รหัสห้อง", "id"].includes(
+          text.toLowerCase(),
+        )
+      ) {
         const sourceType = event.source?.type;
         const sourceId =
-          event.source?.groupId || event.source?.roomId || event.source?.userId || "ไม่พบ";
+          event.source?.groupId ||
+          event.source?.roomId ||
+          event.source?.userId ||
+          "ไม่พบ";
         try {
           await replyMessage(event.replyToken, [
             {
@@ -150,7 +226,9 @@ export async function POST(request: NextRequest) {
       }
 
       if (["ไอดีของฉัน", "my id", "myid"].includes(text.toLowerCase())) {
-        const userId = event.source?.userId || "ไม่พบ (ต้องเป็นสมาชิกที่เพิ่มบอทเป็นเพื่อนแล้ว)";
+        const userId =
+          event.source?.userId ||
+          "ไม่พบ (ต้องเป็นสมาชิกที่เพิ่มบอทเป็นเพื่อนแล้ว)";
         try {
           await replyMessage(event.replyToken, [
             {
@@ -164,6 +242,20 @@ export async function POST(request: NextRequest) {
         return;
       }
 
+      const registerMatch = text.match(/^ลงทะเบียน\s+(.+)$/);
+      if (registerMatch) {
+        try {
+          await handleRegister(
+            registerMatch[1].trim(),
+            event.source?.userId as string | undefined,
+            event.replyToken,
+          );
+        } catch (err) {
+          console.error("Failed to handle LINE register", err);
+        }
+        return;
+      }
+
       const dateKey = resolveDateKeyFromText(text);
       if (!dateKey) return;
       try {
@@ -171,7 +263,7 @@ export async function POST(request: NextRequest) {
       } catch (err) {
         console.error("Failed to reply to LINE schedule request", err);
       }
-    })
+    }),
   );
 
   return NextResponse.json({ ok: true });

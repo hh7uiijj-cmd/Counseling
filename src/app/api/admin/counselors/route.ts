@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { effectivePhotoUrl } from "@/lib/photos";
 
 const createSchema = z.object({
   name: z.string().min(1),
+  fullName: z.string().optional(),
   title: z.string().optional(),
   bio: z.string().optional(),
   photoUrl: z.string().optional(),
@@ -15,12 +17,15 @@ export async function GET() {
   const counselors = await prisma.counselor.findMany({
     orderBy: { createdAt: "asc" },
     include: {
+      partner: { select: { id: true, name: true } },
       _count: {
         select: { slots: true },
       },
     },
   });
-  return NextResponse.json({ counselors });
+  return NextResponse.json({
+    counselors: counselors.map((c) => ({ ...c, photoUrl: effectivePhotoUrl(c), hasUpload: Boolean(c.photoUpdatedAt) })),
+  });
 }
 
 export async function POST(request: NextRequest) {

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { BookingStatus } from "@/generated/prisma/enums";
 import { notifyBookingStatus } from "@/lib/bookingActions";
+import { slotIsActive } from "@/lib/counselors";
 
 const updateSchema = z
   .object({
@@ -37,7 +38,7 @@ export async function PATCH(
     const booking = await prisma.booking.update({
       where: { id },
       data: { status },
-      include: { slot: { include: { counselor: true } } },
+      include: { slot: { include: { counselor: true, partner: true } } },
     });
     if (status) await notifyBookingStatus(booking, status);
     return NextResponse.json({ booking });
@@ -51,9 +52,9 @@ export async function PATCH(
 
     const newSlot = await tx.slot.findUnique({
       where: { id: newSlotId },
-      include: { booking: true, counselor: true },
+      include: { booking: true, counselor: true, partner: true },
     });
-    if (!newSlot || !newSlot.counselor.active) {
+    if (!newSlot || !slotIsActive(newSlot)) {
       return { error: "slot_not_found" as const };
     }
     if (
@@ -78,7 +79,7 @@ export async function PATCH(
     const booking = await tx.booking.update({
       where: { id },
       data: { slotId: newSlotId, ...(status ? { status } : {}) },
-      include: { slot: { include: { counselor: true } } },
+      include: { slot: { include: { counselor: true, partner: true } } },
     });
 
     return { booking };
