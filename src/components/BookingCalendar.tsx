@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { todayKey } from "@/lib/calendarGrid";
-import { COUNSELOR_ROLE_LABEL } from "@/lib/counselors";
+import { DEFAULT_COUNSELOR_TITLE } from "@/lib/counselors";
 import {
   GENDER_OPTIONS,
   YEAR_LEVEL_OPTIONS,
@@ -23,6 +23,7 @@ type SlotMember = {
   id: string;
   name: string;
   fullName: string | null;
+  title: string | null;
   photoUrl: string | null;
   color: string;
 };
@@ -264,7 +265,7 @@ export default function BookingCalendar() {
                                     </p>
                                   )}
                                   <p className="text-xs text-black/50 dark:text-white/65">
-                                    {COUNSELOR_ROLE_LABEL}
+                                    {m.title || DEFAULT_COUNSELOR_TITLE}
                                   </p>
                                 </div>
                               </div>

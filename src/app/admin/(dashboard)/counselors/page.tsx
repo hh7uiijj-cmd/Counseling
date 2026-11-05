@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { resizeImage } from "@/lib/imageResize";
+import { DEFAULT_COUNSELOR_TITLE } from "@/lib/counselors";
 
 type Counselor = {
   id: string;
   name: string;
   fullName: string | null;
+  title: string | null;
   hasUpload: boolean;
   bio: string | null;
   photoUrl: string | null;
@@ -27,7 +30,10 @@ export default function CounselorsPage() {
   const [color, setColor] = useState("#2563eb");
   const [submitting, setSubmitting] = useState(false);
 
-  const [photoUrl, setPhotoUrl] = useState("");
+  const [title, setTitle] = useState(DEFAULT_COUNSELOR_TITLE);
+  const [photo, setPhoto] = useState<string | undefined>();
+  const [fileKey, setFileKey] = useState(0);
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
   const [importText, setImportText] = useState("");
   const [importing, setImporting] = useState(false);
   const [importMessage, setImportMessage] = useState<string | null>(null);
@@ -63,7 +69,8 @@ export default function CounselorsPage() {
       body: JSON.stringify({
         name,
         fullName: fullName || undefined,
-        photoUrl: photoUrl || undefined,
+        title: title.trim() || undefined,
+        photo,
         color,
       }),
     });
@@ -74,7 +81,9 @@ export default function CounselorsPage() {
     }
     setName("");
     setFullName("");
-    setPhotoUrl("");
+    setTitle(DEFAULT_COUNSELOR_TITLE);
+    setPhoto(undefined);
+    setFileKey((k) => k + 1);
     load();
   }
 
@@ -126,6 +135,29 @@ export default function CounselorsPage() {
     load();
   }
 
+  async function uploadPhoto(c: Counselor, file: File) {
+    setUploadingId(c.id);
+    try {
+      const photoData = await resizeImage(file);
+      const res = await fetch(`/api/admin/counselors/${c.id}/photo`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ photo: photoData }),
+      });
+      if (!res.ok) alert("อัปโหลดรูปไม่สำเร็จ กรุณาลองใหม่");
+    } catch {
+      alert("อ่านรูปนี้ไม่ได้ กรุณาเลือกรูปอื่น");
+    }
+    setUploadingId(null);
+    load();
+  }
+
+  async function removePhoto(c: Counselor) {
+    if (!confirm(`ลบรูปของ "${c.name}" ใช่หรือไม่?`)) return;
+    await fetch(`/api/admin/counselors/${c.id}/photo`, { method: "DELETE" });
+    load();
+  }
+
   async function toggleActive(c: Counselor) {
     await fetch(`/api/admin/counselors/${c.id}`, {
       method: "PATCH",
@@ -172,12 +204,25 @@ export default function CounselorsPage() {
           />
         </label>
         <label className="text-sm">
-          ลิงก์รูป (ถ้ามี)
+          ตำแหน่ง *
           <input
-            value={photoUrl}
-            onChange={(e) => setPhotoUrl(e.target.value)}
-            placeholder="https://..."
+            required
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
             className="mt-1 block field"
+          />
+        </label>
+        <label className="text-sm">
+          รูป (อัปโหลดจากเครื่อง)
+          <input
+            key={fileKey}
+            type="file"
+            accept="image/*"
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              setPhoto(file ? await resizeImage(file).catch(() => undefined) : undefined);
+            }}
+            className="mt-1 block text-xs"
           />
         </label>
         <label className="text-sm">
@@ -205,7 +250,7 @@ export default function CounselorsPage() {
       >
         <h2 className="font-medium">นำเข้ารายชื่อหลายคนพร้อมกัน</h2>
         <p className="text-xs text-black/60 dark:text-white/65">
-          วางรายชื่อบรรทัดละ 1 คน รูปแบบ: ชื่อเล่น,ชื่อจริง,ลิงก์รูป (ชื่อจริงและลิงก์รูปไม่ใส่ก็ได้ ผู้ให้คำปรึกษากรอกเองในหน้าลงเวรก็ได้)
+          วางรายชื่อบรรทัดละ 1 คน รูปแบบ: ชื่อเล่น,ชื่อจริง (ชื่อจริงไม่ใส่ก็ได้) ตำแหน่งจะเป็น {DEFAULT_COUNSELOR_TITLE} ให้อัตโนมัติ รูปอัปโหลดทีหลังได้ หรือให้ผู้ให้คำปรึกษาอัปโหลดเองในหน้าลงเวร
           ชื่อที่ซ้ำกับที่มีอยู่จะถูกข้าม
         </p>
         <textarea
@@ -234,6 +279,7 @@ export default function CounselorsPage() {
                 <th className="p-2">รูป</th>
                 <th className="p-2">ชื่อเล่น</th>
                 <th className="p-2">ชื่อจริง</th>
+                <th className="p-2">ตำแหน่ง</th>
                 <th className="p-2" title="ใช้กับโหมดจัดคู่หมุนเวียนอัตโนมัติเท่านั้น (การลงเวรเองไม่ต้องจับคู่)">คู่เวร (ไม่บังคับ)</th>
                 <th className="p-2">จำนวนคิวที่สร้าง</th>
                 <th className="p-2">LINE User ID (สำหรับแท็กชื่อ)</th>
@@ -252,30 +298,40 @@ export default function CounselorsPage() {
                   </td>
                   <td className="p-2">
                     <div className="flex items-center gap-2">
-                      {c.photoUrl && (
+                      {c.photoUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={c.photoUrl}
-                          alt={c.name}
-                          className="h-8 w-8 rounded-full object-cover"
-                        />
+                        <img src={c.photoUrl} alt={c.name} className="h-10 w-10 rounded-full object-cover" />
+                      ) : (
+                        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/10 text-xs dark:bg-white/10">
+                          {c.name.trim().charAt(0)}
+                        </span>
                       )}
-                      <input
-                        key={`${c.id}-${c.photoUrl ?? ""}`}
-                        defaultValue={c.hasUpload ? "" : (c.photoUrl ?? "")}
-                        placeholder={c.hasUpload ? "(อัปโหลดเอง)" : "ลิงก์รูป"}
-                        onBlur={(e) => {
-                          const value = e.target.value.trim();
-                          if (value !== (c.hasUpload ? "" : (c.photoUrl ?? ""))) {
-                            patchCounselor(c, { photoUrl: value || null });
-                          }
-                        }}
-                        className="field w-32 text-xs"
-                      />
+                      <div className="flex flex-col items-start gap-1">
+                        <label className="btn-link cursor-pointer text-xs">
+                          {uploadingId === c.id ? "กำลังอัปโหลด..." : c.photoUrl ? "เปลี่ยนรูป" : "อัปโหลดรูป"}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            disabled={uploadingId === c.id}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              e.target.value = "";
+                              if (file) uploadPhoto(c, file);
+                            }}
+                          />
+                        </label>
+                        {c.photoUrl && (
+                          <button onClick={() => removePhoto(c)} className="btn-link text-xs text-red-600 dark:text-red-400">
+                            ลบรูป
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </td>
                   <td className="p-2">{c.name}</td>
                   <td className="p-2">{c.fullName || "-"}</td>
+                  <td className="p-2">{c.title || "-"}</td>
                   <td className="p-2">
                     <select
                       value={c.partnerId ?? ""}

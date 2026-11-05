@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 const updateSchema = z.object({
   name: z.string().min(1).optional(),
   fullName: z.string().nullable().optional(),
+  title: z.string().trim().min(1).max(100).optional(),
   bio: z.string().nullable().optional(),
   photoUrl: z.string().nullable().optional(),
   color: z.string().optional(),

@@ -4,11 +4,13 @@ import { prisma } from "@/lib/prisma";
 import { verifyLineIdToken } from "@/lib/line";
 import { createCounselorSession } from "@/lib/counselorSession";
 import { parsePhotoDataUrl } from "@/lib/photos";
+import { DEFAULT_COUNSELOR_TITLE } from "@/lib/counselors";
 
 const schema = z.object({
   idToken: z.string().min(10),
   nickname: z.string().trim().min(1).max(40),
   fullName: z.string().trim().min(1).max(100),
+  title: z.string().trim().min(1).max(100).default(DEFAULT_COUNSELOR_TITLE),
   photo: z.string().max(700_000).optional(),
 });
 
@@ -30,7 +32,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ status: "ok", name: existing.name });
   }
 
-  const { nickname, fullName, photo } = parsed.data;
+  const { nickname, fullName, title, photo } = parsed.data;
   const dup = await prisma.counselor.findFirst({
     where: { name: { equals: nickname, mode: "insensitive" } },
   });
@@ -55,6 +57,7 @@ export async function POST(request: NextRequest) {
     data: {
       name: nickname,
       fullName,
+      title,
       lineUserId: identity.userId,
       ...(decoded
         ? {

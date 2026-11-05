@@ -64,6 +64,7 @@ export async function GET() {
       id: me.id,
       name: me.name,
       fullName: me.fullName,
+      title: me.title,
       photoUrl: effectivePhotoUrl(me),
     },
     settings,

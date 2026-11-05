@@ -2,6 +2,8 @@
 
 import Script from "next/script";
 import { useCallback, useEffect, useState } from "react";
+import { resizeImage } from "@/lib/imageResize";
+import { DEFAULT_COUNSELOR_TITLE } from "@/lib/counselors";
 
 // Minimal typing for the parts of the LIFF SDK we use.
 type Liff = {
@@ -36,7 +38,7 @@ type Swap = {
   targetName: string;
 };
 type MeData = {
-  counselor: { id: string; name: string; fullName: string | null; photoUrl: string | null };
+  counselor: { id: string; name: string; fullName: string | null; title: string | null; photoUrl: string | null };
   settings: { maxShiftsPerPerson: number; changeCutoffHours: number };
   myCount: number;
   myShifts: Shift[];
@@ -54,18 +56,7 @@ type Phase =
 
 const timeRange = (s: Shift) => `${s.startTime}-${s.endTime} น.`;
 
-/** Shrink a chosen picture to a ~480px square-ish JPEG data URL so uploads stay small. */
-async function resizeImage(file: File, max = 480): Promise<string> {
-  const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, max / Math.max(bitmap.width, bitmap.height));
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.round(bitmap.width * scale);
-  canvas.height = Math.round(bitmap.height * scale);
-  canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL("image/jpeg", 0.85);
-}
-
-type ProfileValues = { nickname: string; fullName: string; photo?: string };
+type ProfileValues = { nickname: string; fullName: string; title: string; photo?: string };
 
 /** Nickname + full name + photo. Used for first sign-up and for editing later. */
 function ProfileForm({
@@ -75,7 +66,7 @@ function ProfileForm({
   busy,
   onSubmit,
 }: {
-  initial: { nickname: string; fullName: string };
+  initial: { nickname: string; fullName: string; title: string };
   currentPhotoUrl: string | null;
   submitLabel: string;
   busy: boolean;
@@ -83,6 +74,7 @@ function ProfileForm({
 }) {
   const [nickname, setNickname] = useState(initial.nickname);
   const [fullName, setFullName] = useState(initial.fullName);
+  const [title, setTitle] = useState(initial.title);
   const [photo, setPhoto] = useState<string | undefined>();
   const [photoError, setPhotoError] = useState<string | null>(null);
   const preview = photo ?? currentPhotoUrl;
@@ -103,7 +95,7 @@ function ProfileForm({
       className="flex flex-col gap-3"
       onSubmit={(e) => {
         e.preventDefault();
-        onSubmit({ nickname: nickname.trim(), fullName: fullName.trim(), photo });
+        onSubmit({ nickname: nickname.trim(), fullName: fullName.trim(), title: title.trim(), photo });
       }}
     >
       <div className="flex items-center gap-3">
@@ -141,10 +133,20 @@ function ProfileForm({
           className="mt-1 block w-full field"
         />
       </label>
+      <label className="text-sm">
+        ตำแหน่ง *
+        <input
+          required
+          maxLength={100}
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className="mt-1 block w-full field"
+        />
+      </label>
       <p className="text-xs text-black/60 dark:text-white/70">
-        ผู้มาขอรับคำปรึกษาจะเห็นรูป ชื่อจริง และชื่อเล่นของคุณตอนเลือกเวลา
+        ผู้มาขอรับคำปรึกษาจะเห็นรูป ชื่อจริง ชื่อเล่น และตำแหน่งของคุณตอนเลือกเวลา
       </p>
-      <button type="submit" disabled={busy || !nickname.trim() || !fullName.trim()} className="btn btn-primary">
+      <button type="submit" disabled={busy || !nickname.trim() || !fullName.trim() || !title.trim()} className="btn btn-primary">
         {submitLabel}
       </button>
     </form>
@@ -319,7 +321,7 @@ export default function MeApp({ liffId }: { liffId: string }) {
     const res = await fetch("/api/me/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ idToken, nickname: v.nickname, fullName: v.fullName, photo: v.photo }),
+      body: JSON.stringify({ idToken, nickname: v.nickname, fullName: v.fullName, title: v.title, photo: v.photo }),
     });
     const body = await res.json().catch(() => ({}));
     setBusy(false);
@@ -399,7 +401,7 @@ export default function MeApp({ liffId }: { liffId: string }) {
         <div className={`${card} flex flex-col gap-3`}>
           <p className="text-sm font-medium">ครั้งแรกที่เข้าใช้งาน กรอกข้อมูลของคุณ</p>
           <ProfileForm
-            initial={{ nickname: "", fullName: "" }}
+            initial={{ nickname: "", fullName: "", title: DEFAULT_COUNSELOR_TITLE }}
             currentPhotoUrl={null}
             submitLabel="ลงทะเบียน"
             busy={busy}
@@ -444,7 +446,11 @@ export default function MeApp({ liffId }: { liffId: string }) {
           <div className={card}>
             {editingProfile ? (
               <ProfileForm
-                initial={{ nickname: data.counselor.name, fullName: data.counselor.fullName ?? "" }}
+                initial={{
+                  nickname: data.counselor.name,
+                  fullName: data.counselor.fullName ?? "",
+                  title: data.counselor.title || DEFAULT_COUNSELOR_TITLE,
+                }}
                 currentPhotoUrl={data.counselor.photoUrl}
                 submitLabel="บันทึก"
                 busy={busy}
