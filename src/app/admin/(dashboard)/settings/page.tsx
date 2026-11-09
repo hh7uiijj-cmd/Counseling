@@ -220,6 +220,8 @@ LINE_GROUP_ID="..."`}
           ได้ทันที (ต้องตั้งค่า Webhook URL ก่อน)
         </p>
       </section>
+
+      <p className="text-center text-xs text-black/40 dark:text-white/60">web app by Tanawat Sangnon</p>
     </div>
   );
 }

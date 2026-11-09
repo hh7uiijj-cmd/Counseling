@@ -55,6 +55,7 @@ export default function Home() {
           <a href="/admin/login" className="btn-link mt-1 inline-block">
             สำหรับเจ้าหน้าที่
           </a>
+          <p className="mt-3">web app by Tanawat Sangnon</p>
         </footer>
       </div>
     </div>
