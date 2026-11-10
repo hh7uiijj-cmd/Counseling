@@ -7,7 +7,7 @@ export type ShiftSettings = {
   changeCutoffHours: number;
 };
 
-const DEFAULTS: ShiftSettings = { maxShiftsPerPerson: 2, changeCutoffHours: 24 };
+const DEFAULTS: ShiftSettings = { maxShiftsPerPerson: 4, changeCutoffHours: 24 };
 
 function toInt(value: string | undefined, fallback: number) {
   const n = Number(value);

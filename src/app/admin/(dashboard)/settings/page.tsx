@@ -13,7 +13,7 @@ export default function SettingsPage() {
     null
   );
 
-  const [maxShifts, setMaxShifts] = useState(2);
+  const [maxShifts, setMaxShifts] = useState(4);
   const [cutoffHours, setCutoffHours] = useState(24);
   const [savingShift, setSavingShift] = useState(false);
   const [shiftResult, setShiftResult] = useState<{ ok: boolean; message: string } | null>(null);
