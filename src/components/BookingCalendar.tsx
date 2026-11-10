@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { todayKey } from "@/lib/calendarGrid";
 import { DEFAULT_COUNSELOR_TITLE } from "@/lib/counselors";
 import {
@@ -94,6 +94,7 @@ export default function BookingCalendar() {
   const [openSlotId, setOpenSlotId] = useState<string | null>(null);
 
   const [bookingSlot, setBookingSlot] = useState<SlotItem | null>(null);
+  const timesPanelRef = useRef<HTMLDivElement>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
   // Every Friday from today onward that has shifts (as far ahead as the admin created them).
@@ -116,8 +117,14 @@ export default function BookingCalendar() {
     };
   }, [refreshKey]);
 
-  function selectDate(dateKeyStr: string) {
+  function selectDate(dateKeyStr: string, scroll = false) {
     setSelectedDate(dateKeyStr);
+    // On phones the times panel sits below the (long) Friday list: bring it into view.
+    if (scroll && typeof window !== "undefined" && window.innerWidth < 768) {
+      requestAnimationFrame(() =>
+        timesPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+      );
+    }
     setSlots(null);
     setOpenSlotId(null);
     setLoadingDay(true);
@@ -162,7 +169,7 @@ export default function BookingCalendar() {
                   </h3>
                 )}
                 <button
-                  onClick={() => selectDate(key)}
+                  onClick={() => selectDate(key, true)}
                   className={[
                     "flex w-full items-center justify-between gap-3 rounded-xl border p-3 text-left transition hover:border-brand-blue active:scale-[0.99]",
                     isSelected
@@ -196,10 +203,10 @@ export default function BookingCalendar() {
         </ul>
       </div>
 
-      <div className="card p-3 sm:p-4">
+      <div ref={timesPanelRef} className="card scroll-mt-3 p-3 sm:p-4">
         {!selectedDate && (
           <p className="text-sm text-black/50 dark:text-white/65">
-            เลือกวันศุกร์ทางซ้ายเพื่อดูช่วงเวลาที่ว่าง
+            เลือกวันศุกร์เพื่อดูช่วงเวลาที่ว่าง
           </p>
         )}
 
