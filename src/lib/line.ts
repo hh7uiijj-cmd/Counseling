@@ -79,6 +79,11 @@ export async function pushMessageToGroup(messages: LineMessage[]) {
   return callLineApi("/message/push", { to, messages });
 }
 
+/** Push to one person's 1:1 chat. Counts as 1 message (a group push counts once per member). */
+export async function pushMessageToUser(userId: string, messages: LineMessage[]) {
+  return callLineApi("/message/push", { to: userId, messages });
+}
+
 export async function replyMessage(replyToken: string, messages: LineMessage[]) {
   return callLineApi("/message/reply", { replyToken, messages });
 }
@@ -345,6 +350,16 @@ export function buildBookingFlexMessage(params: {
         ],
       },
     },
+  };
+}
+
+/** Swipeable list of booking cards (max 12 per LINE), each with its own confirm/cancel buttons. */
+export function buildBookingCarouselMessage(bookings: Parameters<typeof buildBookingFlexMessage>[0][]) {
+  const bubbles = bookings.slice(0, 12).map((b) => buildBookingFlexMessage(b).contents);
+  return {
+    type: "flex",
+    altText: `มีคิวรอยืนยัน ${bookings.length} คิว`,
+    contents: { type: "carousel", contents: bubbles },
   };
 }
 
