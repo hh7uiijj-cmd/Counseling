@@ -3,7 +3,8 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { thaiDateLabel, toDateKey, toTimeKey } from "@/lib/dates";
 import { sendAdminNotificationEmail } from "@/lib/email";
-import { buildBookingFlexMessage, buildCounselorMentionMessage, pushMessageToGroup } from "@/lib/line";
+import { buildBookingFlexMessage, pushMessageToUser } from "@/lib/line";
+import { bookingCardParams } from "@/lib/bookingMessages";
 import { slotCounselorLabel, slotIsActive, slotMembers } from "@/lib/counselors";
 import { TOPIC_LABELS, FACULTY_LABELS, FORMAT_LABELS } from "@/lib/formOptions";
 import { BookingStatus, Gender, YearLevel, Faculty, ConsultationTopic, ConsultationFormat } from "@/generated/prisma/enums";
@@ -109,35 +110,14 @@ export async function POST(request: NextRequest) {
 
   const { booking, slot } = result;
 
+  // LINE: send ONE card straight to each of the shift's counselors (1:1 push = 1 message each,
+  // instead of a group push that counts once per group member). The group can also type "คิวใหม่"
+  // to list pending bookings for free (reply).
   try {
-    const dateKey = toDateKey(slot.date);
-    const topicLabel =
-      booking.topicCategory === ConsultationTopic.OTHER
-        ? booking.topicOther || TOPIC_LABELS.OTHER
-        : TOPIC_LABELS[booking.topicCategory];
-    const message = buildBookingFlexMessage({
-      bookingId: booking.id,
-      counselorName: slotCounselorLabel(slot),
-      clientName: booking.clientName,
-      studentId: booking.studentId,
-      faculty: FACULTY_LABELS[booking.faculty] || booking.faculty,
-      major: booking.major,
-      clientPhone: booking.clientPhone,
-      lineId: booking.lineId,
-      consultationFormat: FORMAT_LABELS[booking.consultationFormat] || booking.consultationFormat,
-      topic: topicLabel,
-      dateKey,
-      startTime: toTimeKey(slot.startsAt),
-      endTime: toTimeKey(slot.endsAt),
-    });
-    const mentionable = slotMembers(slot).flatMap((m) =>
-      m.lineUserId ? [{ name: m.name, lineUserId: m.lineUserId }] : []
-    );
-    const messages = mentionable.length
-      ? [buildCounselorMentionMessage(mentionable), message]
-      : [message];
-    const pushResult = await pushMessageToGroup(messages);
-    if (pushResult.ok) {
+    const card = buildBookingFlexMessage(bookingCardParams(booking, slot));
+    const recipients = slotMembers(slot).flatMap((m) => (m.lineUserId ? [m.lineUserId] : []));
+    const results = await Promise.all(recipients.map((id) => pushMessageToUser(id, [card])));
+    if (results.some((r) => r.ok)) {
       await prisma.booking.update({
         where: { id: booking.id },
         data: { lineNotified: true },

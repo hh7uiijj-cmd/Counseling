@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { BookingStatus } from "@/generated/prisma/enums";
 import { thaiDateLabel, toDateKey, toTimeKey } from "@/lib/dates";
-import { buildStatusUpdateMessage, pushMessageToGroup } from "@/lib/line";
 import { sendAdminNotificationEmail, sendBookingConfirmationEmail } from "@/lib/email";
 import { slotCounselorLabel } from "@/lib/counselors";
 import { FORMAT_LABELS } from "@/lib/formOptions";
@@ -25,20 +24,8 @@ export async function notifyBookingStatus(booking: BookingWithSlot, status: Book
   const startTime = toTimeKey(booking.slot.startsAt);
   const endTime = toTimeKey(booking.slot.endsAt);
 
-  try {
-    const message = buildStatusUpdateMessage({
-      clientName: booking.clientName,
-      counselorName: slotCounselorLabel(booking.slot),
-      dateKey,
-      startTime,
-      endTime,
-      status,
-    });
-    await pushMessageToGroup([message]);
-  } catch (err) {
-    console.error("Failed to send LINE status update", err);
-  }
-
+  // No LINE push here: confirming/cancelling from a LINE card already gets a free reply in the chat,
+  // and the admin gets the email below.
   try {
     await sendAdminNotificationEmail({
       subject: `อัปเดตสถานะการจอง: ${status}`,

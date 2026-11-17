@@ -2,11 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { dateOnly, toDateKey, toTimeKey } from "@/lib/dates";
 import {
+  buildBookingCarouselMessage,
+  buildMentionTextMessage,
   buildScheduleFlexMessage,
+  buildSignupFlexMessage,
   replyMessage,
   verifyLineSignature,
 } from "@/lib/line";
-import { slotCounselorLabel, slotIsActive } from "@/lib/counselors";
+import { bookingCardParams } from "@/lib/bookingMessages";
+import { slotCounselorLabel, slotIsActive, slotMembers } from "@/lib/counselors";
 import { updateBookingStatus } from "@/lib/bookingActions";
 import { BookingStatus } from "@/generated/prisma/enums";
 
@@ -112,6 +116,56 @@ async function handleScheduleRequest(dateKey: string, replyToken: string) {
 
   const message = buildScheduleFlexMessage({ dateKey, items });
   await replyMessage(replyToken, [message]);
+}
+
+/** "ลงเวร": reply with the sign-up card (free, unlike a push). */
+async function handleSignupRequest(replyToken: string) {
+  const liffId = process.env.LIFF_ID;
+  if (!liffId) {
+    await replyMessage(replyToken, [
+      { type: "text", text: "ยังไม่ได้ตั้งค่าหน้าลงเวร (LIFF_ID) กรุณาแจ้งแอดมิน" },
+    ]);
+    return;
+  }
+  await replyMessage(replyToken, [
+    buildSignupFlexMessage({ signupUrl: `https://liff.line.me/${liffId}` }),
+  ]);
+}
+
+/** "คิวใหม่": reply with every upcoming booking still waiting for confirmation, tagging its counselors. */
+async function handlePendingBookingsRequest(replyToken: string) {
+  const bookings = await prisma.booking.findMany({
+    where: {
+      status: BookingStatus.PENDING,
+      slot: { date: { gte: dateOnly(toDateKey(new Date())) } },
+    },
+    include: { slot: { include: { counselor: true, partner: true } } },
+    orderBy: [{ slot: { startsAt: "asc" } }],
+  });
+
+  if (bookings.length === 0) {
+    await replyMessage(replyToken, [
+      { type: "text", text: "ไม่มีคิวที่รอยืนยัน 🎉" },
+    ]);
+    return;
+  }
+
+  const shown = bookings.slice(0, 12);
+  const people = new Map<string, { name: string; lineUserId: string }>();
+  for (const b of shown) {
+    for (const m of slotMembers(b.slot)) {
+      if (m.lineUserId) people.set(m.lineUserId, { name: m.name, lineUserId: m.lineUserId });
+    }
+  }
+  const extra = bookings.length - shown.length;
+  const summary =
+    `มีคิวรอยืนยัน ${bookings.length} คิว กรุณาตรวจสอบและกดยืนยัน 🔔` +
+    (extra > 0 ? `\n(แสดง ${shown.length} คิวแรก ดูทั้งหมดที่หน้าแอดมิน)` : "");
+
+  await replyMessage(replyToken, [
+    buildMentionTextMessage([...people.values()].slice(0, 20), summary),
+    buildBookingCarouselMessage(shown.map((b) => bookingCardParams(b, b.slot))),
+  ]);
 }
 
 /** "ลงทะเบียน <ชื่อ>" in the group links the sender's LINE user ID to the counselor with that name. */
@@ -238,6 +292,24 @@ export async function POST(request: NextRequest) {
           ]);
         } catch (err) {
           console.error("Failed to reply with user id", err);
+        }
+        return;
+      }
+
+      if (text === "ลงเวร") {
+        try {
+          await handleSignupRequest(event.replyToken);
+        } catch (err) {
+          console.error("Failed to reply with sign-up card", err);
+        }
+        return;
+      }
+
+      if (["คิวใหม่", "คิวที่รอ", "คิวรอยืนยัน"].includes(text)) {
+        try {
+          await handlePendingBookingsRequest(event.replyToken);
+        } catch (err) {
+          console.error("Failed to reply with pending bookings", err);
         }
         return;
       }
