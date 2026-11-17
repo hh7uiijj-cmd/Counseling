@@ -45,6 +45,31 @@ async function callLineApi(path: string, body: unknown) {
   return { ok: true };
 }
 
+/** Thai explanation of a failed LINE API call, shown to the admin (includes LINE's own message). */
+export function describeLineError(result: { status?: number; body?: string; skipped?: boolean }) {
+  if (result.skipped) return "ยังไม่ได้ตั้งค่า LINE_CHANNEL_ACCESS_TOKEN หรือ LINE_GROUP_ID";
+  let detail = "";
+  try {
+    const j = JSON.parse(result.body ?? "{}");
+    detail = [j.message, ...(Array.isArray(j.details) ? j.details.map((d: { message?: string }) => d.message) : [])]
+      .filter(Boolean)
+      .join(" / ");
+  } catch {
+    detail = (result.body ?? "").slice(0, 200);
+  }
+  const hint =
+    result.status === 401
+      ? "Channel access token ไม่ถูกต้องหรือหมดอายุ (ออก token ใหม่ที่ LINE Developers > Messaging API > Channel access token แล้วแก้ใน Vercel + Redeploy)"
+      : result.status === 429
+        ? "ส่งข้อความเกินโควตารายเดือนของบัญชี LINE Official Account (หรือส่งถี่เกินไป) รอเดือนหน้า หรือดูโควตาที่ LINE Official Account Manager"
+        : result.status === 403
+          ? "บอทไม่มีสิทธิ์ส่งไปยังกลุ่มนี้ (บอทอาจถูกลบออกจากกลุ่ม หรือ LINE_GROUP_ID ไม่ใช่กลุ่มของบอทตัวนี้)"
+          : result.status === 400
+            ? "LINE_GROUP_ID หรือรูปแบบข้อความไม่ถูกต้อง (Group ID ต้องขึ้นต้นด้วย C และยาว 33 ตัวอักษร)"
+            : "ส่งไม่สำเร็จ";
+  return `${hint}${detail ? ` · LINE ตอบว่า: ${detail}` : ""}${result.status ? ` (HTTP ${result.status})` : ""}`;
+}
+
 export async function pushMessageToGroup(messages: LineMessage[]) {
   const to = process.env.LINE_GROUP_ID;
   if (!to) {

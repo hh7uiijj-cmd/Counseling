@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { buildMentionTextMessage, isLineConfigured, pushMessageToGroup } from "@/lib/line";
+import { describeLineError, buildMentionTextMessage, isLineConfigured, pushMessageToGroup } from "@/lib/line";
 import { dateOnly, thaiDateLabel, toTimeKey } from "@/lib/dates";
 import { slotMembers } from "@/lib/counselors";
 
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
   const result = await pushMessageToGroup([buildMentionTextMessage(mentionable.slice(0, 20), parsed.data.text)]);
   if (!result.ok) {
     return NextResponse.json(
-      { error: "line_api_error", message: "ส่งไม่สำเร็จ กรุณาตรวจสอบการตั้งค่า LINE", detail: result },
+      { error: "line_api_error", message: describeLineError(result), detail: result },
       { status: 502 }
     );
   }

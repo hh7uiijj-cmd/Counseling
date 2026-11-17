@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import {
+  describeLineError,
   buildBookingFlexMessage,
   buildCounselorMentionMessage,
   buildSignupFlexMessage,
@@ -126,7 +127,7 @@ export async function POST(request: NextRequest) {
   const result = await pushMessageToGroup(messages);
   if (!result.ok) {
     return NextResponse.json(
-      { error: "line_api_error", message: "ส่งไม่สำเร็จ กรุณาตรวจสอบ LINE_GROUP_ID และ token", detail: result },
+      { error: "line_api_error", message: describeLineError(result), detail: result },
       { status: 502 }
     );
   }
