@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { buildSignupFlexMessage, isLineConfigured, pushMessageToGroup } from "@/lib/line";
+import { describeLineError, buildSignupFlexMessage, isLineConfigured, pushMessageToGroup } from "@/lib/line";
 
 const schema = z.object({ note: z.string().trim().max(200).optional() });
 
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
   ]);
   if (!result.ok) {
     return NextResponse.json(
-      { error: "line_api_error", message: "ส่งไม่สำเร็จ กรุณาตรวจสอบ LINE_GROUP_ID และ token", detail: result },
+      { error: "line_api_error", message: describeLineError(result), detail: result },
       { status: 502 }
     );
   }
