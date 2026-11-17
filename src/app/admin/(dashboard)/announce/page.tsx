@@ -113,6 +113,19 @@ export default function AnnouncePage() {
     );
   }
 
+  async function sendEmailTest() {
+    setTesting("email");
+    setResult(null);
+    const res = await fetch("/api/admin/email-test", { method: "POST" });
+    const d = await res.json().catch(() => ({}));
+    setTesting(null);
+    setResult(
+      res.ok
+        ? { ok: true, message: `ส่งอีเมลทดสอบไปที่ ${d.to} แล้ว (ถ้าไม่เห็นให้ดูในกล่องสแปม)` }
+        : { ok: false, message: d.message || "ส่งอีเมลไม่สำเร็จ" }
+    );
+  }
+
   async function sendSignupCard() {
     if (!window.confirm("ส่งการ์ด \"เปิดลงเวร\" ลงกลุ่ม LINE ตอนนี้เลยใช่ไหม?")) return;
     setSendingCard(true);
@@ -138,8 +151,9 @@ export default function AnnouncePage() {
     <div className="flex max-w-2xl flex-col gap-6">
       <h1 className="text-xl font-semibold">ประกาศลง LINE</h1>
       <p className="text-sm text-black/60 dark:text-white/75">
-        ระบบส่งข้อความลงกลุ่มเองเฉพาะเมื่อมีผู้ขอรับคำปรึกษาจองคิว (ลงเวร/ยกเลิกเวร/สลับเวรไม่ส่งข้อความ
-        เพื่อประหยัดโควตา LINE) ส่วนหน้านี้ใช้ส่งประกาศเพิ่มเองและทดสอบการส่ง
+        ข้อความลงกลุ่ม LINE ส่งเองเฉพาะเมื่อมีผู้ขอรับคำปรึกษาจองคิว (ลงเวร/ยกเลิกเวร/สลับเวรไม่ส่งเข้ากลุ่ม
+        เพื่อประหยัดโควตา) และระบบส่งอีเมลสำเนาทุกเหตุการณ์ (จองคิว สถานะการจอง ลงเวร ยกเลิกเวร สลับเวร) ไปที่อีเมลแอดมิน
+        ส่วนหน้านี้ใช้ส่งประกาศเพิ่มเองและทดสอบการส่ง
       </p>
       {result && (
         <p
@@ -182,6 +196,11 @@ export default function AnnouncePage() {
           กดปุ่มเพื่อให้บอทส่ง &quot;ตัวอย่าง&quot; ข้อความนั้นเข้ากลุ่ม LINE (ขึ้นต้น 🧪 [ทดสอบ] ไม่มีการบันทึกข้อมูลจริงในระบบ
           ปุ่มยืนยัน/ยกเลิกบนการ์ดจองตัวอย่างจะตอบว่าไม่พบข้อมูลการจอง)
         </p>
+        <div className="mb-4">
+          <button onClick={sendEmailTest} disabled={testing !== null} className="btn btn-secondary">
+            {testing === "email" ? "กำลังส่ง..." : "ส่งอีเมลทดสอบ (ไม่ใช้โควตา LINE)"}
+          </button>
+        </div>
         <div className="flex flex-col gap-4">
           {SAMPLE_GROUPS.map((g) => (
             <div key={g.title}>

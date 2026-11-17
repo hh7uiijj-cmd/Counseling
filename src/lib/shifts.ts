@@ -1,6 +1,7 @@
 import { effectivePhotoUrl } from "@/lib/photos";
 import { BookingStatus } from "@/generated/prisma/enums";
 import { buildMentionTextMessage, pushMessageToGroup } from "@/lib/line";
+import { sendAdminNotificationEmail } from "@/lib/email";
 import { SEATS_PER_SHIFT, slotCounselorLabel, slotMembers } from "@/lib/counselors";
 import { thaiDateLabel, toDateKey, toTimeKey } from "@/lib/dates";
 
@@ -75,6 +76,8 @@ export function shiftText(slot: { date: Date; startsAt: Date; endsAt: Date }) {
  * Posts to the LINE group, tagging whoever has a linked LINE account. Never throws.
  */
 export async function notifyGroup(people: Person[], text: string) {
+  // Always email the admin a copy (sign-up, cancel, swap), independent of the LINE quota.
+  await sendAdminNotificationEmail({ subject: text.length > 60 ? `${text.slice(0, 57)}...` : text, lines: [text], link: "/admin/slots" });
   if (process.env.SHIFT_AUTO_NOTIFY !== "true") return;
   try {
     const unique = [...new Map(people.map((p) => [p.id, p])).values()];
