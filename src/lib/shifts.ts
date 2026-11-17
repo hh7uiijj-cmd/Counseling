@@ -70,11 +70,12 @@ export function shiftText(slot: { date: Date; startsAt: Date; endsAt: Date }) {
 }
 
 /**
- * Posts a shift notice (sign-up, release, swap) to the LINE group, tagging whoever has a linked LINE account.
- * ON by default; set SHIFT_AUTO_NOTIFY=false to silence these (the admin "ประกาศลง LINE" page still works). Never throws.
+ * Shift notices (cancel / swap) to the LINE group are OFF by default to save the LINE message quota
+ * (group messages count per member). Set SHIFT_AUTO_NOTIFY=true to turn them on. Booking alerts are separate.
+ * Posts to the LINE group, tagging whoever has a linked LINE account. Never throws.
  */
 export async function notifyGroup(people: Person[], text: string) {
-  if (process.env.SHIFT_AUTO_NOTIFY === "false") return;
+  if (process.env.SHIFT_AUTO_NOTIFY !== "true") return;
   try {
     const unique = [...new Map(people.map((p) => [p.id, p])).values()];
     const mentionable = unique.flatMap((p) =>
