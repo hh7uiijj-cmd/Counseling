@@ -4,10 +4,10 @@ import { prisma } from "@/lib/prisma";
 import { thaiDateLabel, toDateKey, toTimeKey } from "@/lib/dates";
 import { sendAdminNotificationEmail } from "@/lib/email";
 import { buildBookingFlexMessage, pushMessageToUser } from "@/lib/line";
-import { bookingCardParams } from "@/lib/bookingMessages";
+import { affiliationLabel, affiliationValue, bookingCardParams } from "@/lib/bookingMessages";
 import { slotCounselorLabel, slotIsActive, slotMembers } from "@/lib/counselors";
-import { TOPIC_LABELS, FACULTY_LABELS, FORMAT_LABELS } from "@/lib/formOptions";
-import { BookingStatus, Gender, YearLevel, Faculty, ConsultationTopic, ConsultationFormat } from "@/generated/prisma/enums";
+import { TOPIC_LABELS, FORMAT_LABELS } from "@/lib/formOptions";
+import { BookingStatus, ClientType, Gender, YearLevel, Faculty, ConsultationTopic, ConsultationFormat } from "@/generated/prisma/enums";
 
 const createSchema = z
   .object({
@@ -15,9 +15,11 @@ const createSchema = z
     clientName: z.string().min(1).max(200),
     studentId: z.string().max(50).optional(),
     gender: z.enum([Gender.MALE, Gender.FEMALE, Gender.LGBTQ]),
-    yearLevel: z.enum([YearLevel.YEAR_1, YearLevel.YEAR_2, YearLevel.YEAR_3, YearLevel.YEAR_4]),
-    faculty: z.enum(Object.values(Faculty) as [Faculty, ...Faculty[]]),
-    major: z.string().min(1).max(200),
+    clientType: z.enum([ClientType.STUDENT, ClientType.STAFF]).default(ClientType.STUDENT),
+    yearLevel: z.enum([YearLevel.YEAR_1, YearLevel.YEAR_2, YearLevel.YEAR_3, YearLevel.YEAR_4]).optional(),
+    faculty: z.enum(Object.values(Faculty) as [Faculty, ...Faculty[]]).optional(),
+    major: z.string().max(200).optional(),
+    department: z.string().max(200).optional(),
     topicCategory: z.enum([ConsultationTopic.STUDY, ConsultationTopic.LIFE, ConsultationTopic.OTHER]),
     topicOther: z.string().max(500).optional(),
     consultationFormat: z.enum([ConsultationFormat.ONLINE, ConsultationFormat.ONSITE]),
@@ -25,6 +27,17 @@ const createSchema = z
     clientEmail: z.string().email().max(254),
     lineId: z.string().min(1).max(100),
     note: z.string().max(1000).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.clientType === ClientType.STAFF) {
+      if (!data.department?.trim()) {
+        ctx.addIssue({ code: "custom", message: "กรุณาระบุหน่วยงาน", path: ["department"] });
+      }
+      return;
+    }
+    if (!data.yearLevel) ctx.addIssue({ code: "custom", message: "กรุณาเลือกชั้นปี", path: ["yearLevel"] });
+    if (!data.faculty) ctx.addIssue({ code: "custom", message: "กรุณาเลือกคณะ", path: ["faculty"] });
+    if (!data.major?.trim()) ctx.addIssue({ code: "custom", message: "กรุณาระบุหลักสูตร/สาขาวิชา", path: ["major"] });
   })
   .refine((data) => data.topicCategory !== ConsultationTopic.OTHER || Boolean(data.topicOther?.trim()), {
     message: "กรุณาระบุรายละเอียดเมื่อเลือก 'อื่นๆ'",
@@ -46,9 +59,11 @@ export async function POST(request: NextRequest) {
     clientName,
     studentId,
     gender,
+    clientType,
     yearLevel,
     faculty,
     major,
+    department,
     topicCategory,
     topicOther,
     consultationFormat,
@@ -57,6 +72,7 @@ export async function POST(request: NextRequest) {
     lineId,
     note,
   } = parsed.data;
+  const isStaff = clientType === ClientType.STAFF;
 
   const result = await prisma.$transaction(async (tx) => {
     const slot = await tx.slot.findUnique({
@@ -81,11 +97,13 @@ export async function POST(request: NextRequest) {
 
     const data = {
       clientName,
-      studentId: studentId || null,
+      studentId: isStaff ? null : studentId || null,
       gender,
-      yearLevel,
-      faculty,
-      major,
+      clientType,
+      yearLevel: isStaff ? null : yearLevel,
+      faculty: isStaff ? null : faculty,
+      major: isStaff ? null : major,
+      department: isStaff ? department?.trim() || null : null,
       topicCategory,
       topicOther: topicCategory === ConsultationTopic.OTHER ? topicOther || null : null,
       consultationFormat,
@@ -135,7 +153,7 @@ export async function POST(request: NextRequest) {
         `วันที่ ${thaiDateLabel(toDateKey(slot.date))} เวลา ${toTimeKey(slot.startsAt)}-${toTimeKey(slot.endsAt)} น.`,
         `ผู้ให้คำปรึกษา: ${slotCounselorLabel(slot)}`,
         `ผู้ขอรับคำปรึกษา: ${booking.clientName}${booking.studentId ? ` (${booking.studentId})` : ""}`,
-        `คณะ/สาขา: ${FACULTY_LABELS[booking.faculty] || booking.faculty} / ${booking.major}`,
+        `ประเภท: ${affiliationLabel(booking)}: ${affiliationValue(booking)}`,
         `รูปแบบ: ${FORMAT_LABELS[booking.consultationFormat] || booking.consultationFormat}`,
         `เบอร์โทร: ${booking.clientPhone} · LINE ID: ${booking.lineId} · อีเมล: ${booking.clientEmail}`,
         `หัวข้อ: ${

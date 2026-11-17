@@ -8,8 +8,10 @@ type BookingForCard = {
   id: string;
   clientName: string;
   studentId: string | null;
-  faculty: string;
-  major: string;
+  clientType: string;
+  faculty: string | null;
+  major: string | null;
+  department: string | null;
   clientPhone: string;
   lineId: string;
   consultationFormat: string;
@@ -25,6 +27,22 @@ type SlotForCard = {
   partner?: { name: string } | null;
 };
 
+/** "คณะ/สาขา" for students, "หน่วยงาน" for staff (บุคลากร). */
+export function affiliationLabel(b: { clientType: string }) {
+  return b.clientType === "STAFF" ? "บุคลากร · หน่วยงาน" : "นักศึกษา · คณะ/สาขา";
+}
+
+export function affiliationValue(b: {
+  clientType: string;
+  faculty: string | null;
+  major: string | null;
+  department: string | null;
+}) {
+  if (b.clientType === "STAFF") return b.department || "-";
+  const faculty = b.faculty ? FACULTY_LABELS[b.faculty] || b.faculty : "-";
+  return `${faculty} / ${b.major || "-"}`;
+}
+
 /** Parameters for `buildBookingFlexMessage`, shared by the new-booking push and the "คิวใหม่" reply. */
 export function bookingCardParams(
   booking: BookingForCard,
@@ -39,8 +57,8 @@ export function bookingCardParams(
     counselorName: slotCounselorLabel(slot),
     clientName: booking.clientName,
     studentId: booking.studentId,
-    faculty: FACULTY_LABELS[booking.faculty] || booking.faculty,
-    major: booking.major,
+    affiliationLabel: affiliationLabel(booking),
+    affiliation: affiliationValue(booking),
     clientPhone: booking.clientPhone,
     lineId: booking.lineId,
     consultationFormat: FORMAT_LABELS[booking.consultationFormat] || booking.consultationFormat,
