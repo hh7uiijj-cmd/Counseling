@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { toDateKey, toTimeKey } from "@/lib/dates";
+import { thaiDateLabel, toDateKey, toTimeKey } from "@/lib/dates";
+import { sendAdminNotificationEmail } from "@/lib/email";
 import { buildBookingFlexMessage, buildCounselorMentionMessage, pushMessageToGroup } from "@/lib/line";
 import { slotCounselorLabel, slotIsActive, slotMembers } from "@/lib/counselors";
 import { TOPIC_LABELS, FACULTY_LABELS, FORMAT_LABELS } from "@/lib/formOptions";
@@ -144,6 +145,29 @@ export async function POST(request: NextRequest) {
     }
   } catch (err) {
     console.error("Failed to send LINE notification", err);
+  }
+
+  // Email the admin too (works even when LINE is out of quota).
+  try {
+    await sendAdminNotificationEmail({
+      subject: "มีการจองคิวใหม่",
+      lines: [
+        `วันที่ ${thaiDateLabel(toDateKey(slot.date))} เวลา ${toTimeKey(slot.startsAt)}-${toTimeKey(slot.endsAt)} น.`,
+        `ผู้ให้คำปรึกษา: ${slotCounselorLabel(slot)}`,
+        `ผู้ขอรับคำปรึกษา: ${booking.clientName}${booking.studentId ? ` (${booking.studentId})` : ""}`,
+        `คณะ/สาขา: ${FACULTY_LABELS[booking.faculty] || booking.faculty} / ${booking.major}`,
+        `รูปแบบ: ${FORMAT_LABELS[booking.consultationFormat] || booking.consultationFormat}`,
+        `เบอร์โทร: ${booking.clientPhone} · LINE ID: ${booking.lineId} · อีเมล: ${booking.clientEmail}`,
+        `หัวข้อ: ${
+          booking.topicCategory === ConsultationTopic.OTHER
+            ? booking.topicOther || TOPIC_LABELS.OTHER
+            : TOPIC_LABELS[booking.topicCategory]
+        }`,
+      ],
+      link: "/admin/bookings",
+    });
+  } catch (err) {
+    console.error("Failed to send admin booking email", err);
   }
 
   return NextResponse.json({ booking }, { status: 201 });

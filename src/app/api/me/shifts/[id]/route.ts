@@ -72,7 +72,13 @@ export async function POST(
     include: { counselor: true, partner: true },
   });
   const members = slotMembers(after);
-// Signing up intentionally does not post to the LINE group (admin announces from "ประกาศลง LINE").
+// Sign-ups are emailed to the admin only (notifyGroup skips the LINE group unless SHIFT_AUTO_NOTIFY=true).
+  await notifyGroup(
+    members,
+    members.length === SEATS_PER_SHIFT
+      ? `เวรครบ 2 คนแล้ว ✅ ${shiftText(after)} (${members.map((m) => m.name).join(" + ")})`
+      : `${me.name} ลงเวร ${shiftText(after)} รออีก 1 คน`
+  );
   return NextResponse.json({ ok: true, full: members.length === SEATS_PER_SHIFT });
 }
 

@@ -81,6 +81,48 @@ export async function sendBookingConfirmationEmail(params: {
   }
 }
 
+/** Where admin copies of every notification are emailed (override with ADMIN_NOTIFY_EMAIL). */
+const DEFAULT_ADMIN_NOTIFY_EMAIL = "hh7uiijj@gmail.com";
+
+export function adminNotifyEmail() {
+  return (process.env.ADMIN_NOTIFY_EMAIL || DEFAULT_ADMIN_NOTIFY_EMAIL).trim();
+}
+
+/** Email the admin a copy of a notification (bookings, shift sign-ups/cancels/swaps). Never throws. */
+export async function sendAdminNotificationEmail(params: { subject: string; lines: string[]; link?: string }) {
+  const client = getClient();
+  if (!client) {
+    console.warn("RESEND_API_KEY not set; skipping admin notification email");
+    return { ok: false, skipped: true };
+  }
+  const fromAddress = (process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev").trim();
+  const baseUrl = process.env.APP_BASE_URL;
+  const base = baseUrl && /^https?:\/\//.test(baseUrl) ? baseUrl.replace(/\/$/, "") : null;
+  const href = params.link && base ? `${base}${params.link}` : null;
+  try {
+    const result = await client.emails.send({
+      from: `SDU Counseling Center <${fromAddress}>`,
+      to: adminNotifyEmail(),
+      subject: `[เพื่อนวัยใส] ${params.subject}`,
+      html: `
+        <div style="font-family: sans-serif; max-width: 520px; margin: 0 auto; color: #111827;">
+          <h3 style="color: #2563eb; margin-bottom: 12px;">${escapeHtml(params.subject)}</h3>
+          ${params.lines.map((l) => `<p style="margin: 4px 0; line-height: 1.7;">${escapeHtml(l)}</p>`).join("")}
+          ${href ? `<p style="margin-top: 16px;"><a href="${href}">เปิดระบบจัดการ</a></p>` : ""}
+        </div>
+      `,
+    });
+    if (result.error) {
+      console.error("Failed to send admin notification email", JSON.stringify(result.error));
+      return { ok: false, error: result.error };
+    }
+    return { ok: true };
+  } catch (err) {
+    console.error("Failed to send admin notification email", err instanceof Error ? err.message : JSON.stringify(err));
+    return { ok: false, error: err };
+  }
+}
+
 function escapeHtml(value: string) {
   return value
     .replace(/&/g, "&amp;")

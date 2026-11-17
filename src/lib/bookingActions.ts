@@ -1,8 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { BookingStatus } from "@/generated/prisma/enums";
-import { toDateKey, toTimeKey } from "@/lib/dates";
+import { thaiDateLabel, toDateKey, toTimeKey } from "@/lib/dates";
 import { buildStatusUpdateMessage, pushMessageToGroup } from "@/lib/line";
-import { sendBookingConfirmationEmail } from "@/lib/email";
+import { sendAdminNotificationEmail, sendBookingConfirmationEmail } from "@/lib/email";
 import { slotCounselorLabel } from "@/lib/counselors";
 import { FORMAT_LABELS } from "@/lib/formOptions";
 
@@ -37,6 +37,19 @@ export async function notifyBookingStatus(booking: BookingWithSlot, status: Book
     await pushMessageToGroup([message]);
   } catch (err) {
     console.error("Failed to send LINE status update", err);
+  }
+
+  try {
+    await sendAdminNotificationEmail({
+      subject: `อัปเดตสถานะการจอง: ${status}`,
+      lines: [
+        `${booking.clientName} · ${thaiDateLabel(dateKey)} ${startTime}-${endTime} น. · ผู้ให้คำปรึกษา ${slotCounselorLabel(booking.slot)}`,
+        `สถานะใหม่: ${status}`,
+      ],
+      link: "/admin/bookings",
+    });
+  } catch (err) {
+    console.error("Failed to send admin status email", err);
   }
 
   if (status === BookingStatus.CONFIRMED) {
