@@ -29,6 +29,11 @@ enum YearLevel {
   YEAR_4
 }
 
+enum ClientType {
+  STUDENT // นักศึกษา
+  STAFF // บุคลากร
+}
+
 enum Faculty {
   EDUCATION // คณะครุศาสตร์
   SCIENCE_TECHNOLOGY // คณะวิทยาศาสตร์และเทคโนโลยี
@@ -135,9 +140,11 @@ model Booking {
   clientName         String // ชื่อ-นามสกุล
   studentId          String? // เลขระเบียน
   gender             Gender // เพศ
-  yearLevel          YearLevel // ชั้นปี
-  faculty            Faculty // คณะ/โรงเรียน/วิทยาเขต/ศูนย์การศึกษา
-  major              String // หลักสูตร/สาขาวิชา
+  clientType         ClientType         @default(STUDENT) // นักศึกษา หรือ บุคลากร
+  yearLevel          YearLevel? // ชั้นปี (นักศึกษาเท่านั้น)
+  faculty            Faculty? // คณะ/โรงเรียน/วิทยาเขต/ศูนย์การศึกษา (นักศึกษาเท่านั้น)
+  major              String? // หลักสูตร/สาขาวิชา (นักศึกษาเท่านั้น)
+  department         String? // หน่วยงาน (บุคลากรเท่านั้น)
   topicCategory      ConsultationTopic // เรื่องที่ขอรับคำปรึกษา
   topicOther         String? // รายละเอียดเพิ่มเติมเมื่อเลือก "อื่นๆ"
   consultationFormat ConsultationFormat // รูปแบบการให้คำปรึกษา

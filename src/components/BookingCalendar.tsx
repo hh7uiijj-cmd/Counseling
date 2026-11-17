@@ -329,6 +329,8 @@ function BookingModal({
   onSuccess: () => void;
 }) {
   const [clientName, setClientName] = useState("");
+  const [clientType, setClientType] = useState<"STUDENT" | "STAFF">("STUDENT");
+  const [department, setDepartment] = useState("");
   const [studentId, setStudentId] = useState("");
   const [gender, setGender] = useState("");
   const [yearLevel, setYearLevel] = useState("");
@@ -356,11 +358,11 @@ function BookingModal({
         body: JSON.stringify({
           slotId: slot.id,
           clientName,
-          studentId: studentId || undefined,
+          clientType,
+          ...(clientType === "STAFF"
+            ? { department }
+            : { studentId: studentId || undefined, yearLevel, faculty, major }),
           gender,
-          yearLevel,
-          faculty,
-          major,
           topicCategory,
           topicOther: topicOther || undefined,
           consultationFormat,
@@ -419,13 +421,28 @@ function BookingModal({
             </label>
 
             <label className="text-sm font-medium">
-              เลขระเบียน
-              <input
-                value={studentId}
-                onChange={(e) => setStudentId(e.target.value)}
+              ประเภทผู้ขอรับคำปรึกษา *
+              <select
+                required
+                value={clientType}
+                onChange={(e) => setClientType(e.target.value as "STUDENT" | "STAFF")}
                 className={inputClass}
-              />
+              >
+                <option value="STUDENT">นักศึกษา</option>
+                <option value="STAFF">บุคลากร</option>
+              </select>
             </label>
+
+            {clientType === "STUDENT" && (
+              <label className="text-sm font-medium">
+                เลขระเบียน
+                <input
+                  value={studentId}
+                  onChange={(e) => setStudentId(e.target.value)}
+                  className={inputClass}
+                />
+              </label>
+            )}
 
             <label className="text-sm font-medium">
               เพศ *
@@ -441,53 +458,68 @@ function BookingModal({
               </select>
             </label>
 
-            <label className="text-sm font-medium">
-              ชั้นปี *
-              <select
-                required
-                value={yearLevel}
-                onChange={(e) => setYearLevel(e.target.value)}
-                className={inputClass}
-              >
-                <option value="" disabled>
-                  เลือกชั้นปี
-                </option>
-                {YEAR_LEVEL_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {clientType === "STUDENT" ? (
+              <>
+                <label className="text-sm font-medium">
+                  ชั้นปี *
+                  <select
+                    required
+                    value={yearLevel}
+                    onChange={(e) => setYearLevel(e.target.value)}
+                    className={inputClass}
+                  >
+                    <option value="" disabled>
+                      เลือกชั้นปี
+                    </option>
+                    {YEAR_LEVEL_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-            <label className="text-sm font-medium">
-              คณะ/โรงเรียน/วิทยาเขต/ศูนย์การศึกษา *
-              <select
-                required
-                value={faculty}
-                onChange={(e) => setFaculty(e.target.value)}
-                className={inputClass}
-              >
-                <option value="" disabled>
-                  เลือกคณะ/โรงเรียน/วิทยาเขต
-                </option>
-                {FACULTY_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+                <label className="text-sm font-medium">
+                  คณะ/โรงเรียน/วิทยาเขต/ศูนย์การศึกษา *
+                  <select
+                    required
+                    value={faculty}
+                    onChange={(e) => setFaculty(e.target.value)}
+                    className={inputClass}
+                  >
+                    <option value="" disabled>
+                      เลือกคณะ/โรงเรียน/วิทยาเขต
+                    </option>
+                    {FACULTY_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-            <label className="text-sm font-medium">
-              หลักสูตร/สาขาวิชา *
-              <input
-                required
-                value={major}
-                onChange={(e) => setMajor(e.target.value)}
-                className={inputClass}
-              />
-            </label>
+                <label className="text-sm font-medium">
+                  หลักสูตร/สาขาวิชา *
+                  <input
+                    required
+                    value={major}
+                    onChange={(e) => setMajor(e.target.value)}
+                    className={inputClass}
+                  />
+                </label>
+              </>
+            ) : (
+              <label className="text-sm font-medium">
+                หน่วยงาน *
+                <input
+                  required
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value)}
+                  placeholder="พิมพ์ชื่อหน่วยงานของคุณ"
+                  className={inputClass}
+                />
+              </label>
+            )}
 
             <label className="text-sm font-medium">
               เรื่องที่ขอรับคำปรึกษา *

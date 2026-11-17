@@ -17,9 +17,11 @@ type Booking = {
   clientName: string;
   studentId: string | null;
   gender: string;
-  yearLevel: string;
-  faculty: string;
-  major: string;
+  clientType: string;
+  yearLevel: string | null;
+  faculty: string | null;
+  major: string | null;
+  department: string | null;
   topicCategory: string;
   topicOther: string | null;
   consultationFormat: string;
@@ -179,9 +181,19 @@ function BookingsInner() {
                   <td className="p-2">{slotCounselorLabel(b.slot)}</td>
                   <td className="p-2">{b.clientName}</td>
                   <td className="p-2">
-                    {FACULTY_LABELS[b.faculty] || b.faculty}
-                    <br />
-                    <span className="text-xs text-black/50 dark:text-white/65">{b.major}</span>
+                    {b.clientType === "STAFF" ? (
+                      <>
+                        บุคลากร
+                        <br />
+                        <span className="text-xs text-black/50 dark:text-white/65">{b.department}</span>
+                      </>
+                    ) : (
+                      <>
+                        {b.faculty ? FACULTY_LABELS[b.faculty] || b.faculty : "-"}
+                        <br />
+                        <span className="text-xs text-black/50 dark:text-white/65">{b.major}</span>
+                      </>
+                    )}
                   </td>
                   <td className="p-2">{topicLabel(b)}</td>
                   <td className="p-2">
@@ -272,11 +284,21 @@ function BookingDetailModal({
 
         <div className="flex flex-col">
           {detailField("ชื่อ-นามสกุล", booking.clientName)}
-          {detailField("เลขระเบียน", booking.studentId || "-")}
+          {detailField("ประเภท", booking.clientType === "STAFF" ? "บุคลากร" : "นักศึกษา")}
+          {booking.clientType !== "STAFF" && detailField("เลขระเบียน", booking.studentId || "-")}
           {detailField("เพศ", GENDER_LABELS[booking.gender] || booking.gender)}
-          {detailField("ชั้นปี", YEAR_LEVEL_LABELS[booking.yearLevel] || booking.yearLevel)}
-          {detailField("คณะ/โรงเรียน/วิทยาเขต", FACULTY_LABELS[booking.faculty] || booking.faculty)}
-          {detailField("หลักสูตร/สาขาวิชา", booking.major)}
+          {booking.clientType === "STAFF" ? (
+            detailField("หน่วยงาน", booking.department || "-")
+          ) : (
+            <>
+              {detailField("ชั้นปี", booking.yearLevel ? YEAR_LEVEL_LABELS[booking.yearLevel] || booking.yearLevel : "-")}
+              {detailField(
+                "คณะ/โรงเรียน/วิทยาเขต",
+                booking.faculty ? FACULTY_LABELS[booking.faculty] || booking.faculty : "-"
+              )}
+              {detailField("หลักสูตร/สาขาวิชา", booking.major || "-")}
+            </>
+          )}
           {detailField("เรื่องที่ขอรับคำปรึกษา", topicLabel(booking))}
           {detailField(
             "รูปแบบการให้คำปรึกษา",

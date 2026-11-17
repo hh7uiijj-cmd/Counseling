@@ -200,8 +200,8 @@ export function buildBookingFlexMessage(params: {
   counselorName: string;
   clientName: string;
   studentId?: string | null;
-  faculty: string;
-  major: string;
+  affiliationLabel: string;
+  affiliation: string;
   clientPhone: string;
   lineId: string;
   consultationFormat: string;
@@ -292,7 +292,7 @@ export function buildBookingFlexMessage(params: {
           lineField("ผู้ให้คำปรึกษา", params.counselorName),
           lineField("ผู้ขอรับคำปรึกษา", params.clientName),
           ...(params.studentId ? [lineField("เลขระเบียน", params.studentId)] : []),
-          lineField("คณะ/สาขา", `${params.faculty} - ${params.major}`),
+          lineField(params.affiliationLabel, params.affiliation),
           lineField("รูปแบบ", params.consultationFormat),
           lineField("เบอร์ติดต่อ", params.clientPhone),
           lineField("LINE ID", params.lineId),
